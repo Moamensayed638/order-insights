@@ -1,5 +1,5 @@
 const TOKEN_KEY = "admin_token";
-const API_BASE_URL = import.meta.env.VITE_API_URL ?? "/api/";
+const API_BASE_URL = import.meta.env.VITE_API_URL ?? "https://biscofa.runasp.net/api/";
 
 export function apiUrl(path: string) {
   const base = API_BASE_URL.endsWith("/") ? API_BASE_URL : `${API_BASE_URL}/`;
