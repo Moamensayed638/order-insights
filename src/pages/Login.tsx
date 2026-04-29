@@ -1,5 +1,5 @@
 import { FormEvent, useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -51,6 +51,11 @@ export default function Login() {
           <Input value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Password" type="password" />
           {error && <p className="text-sm text-destructive">{error}</p>}
           <Button className="w-full" disabled={loading}>{loading ? "Signing in..." : "Login"}</Button>
+          <div className="pt-1 text-center text-sm">
+            <Link to="/forgot-password" className="text-primary underline-offset-4 hover:underline">
+              Forgot password?
+            </Link>
+          </div>
         </form>
       </Card>
     </div>
