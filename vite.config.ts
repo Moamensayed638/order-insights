@@ -8,13 +8,6 @@ export default defineConfig(({ mode }) => ({
   server: {
     host: "::",
     port: 8080,
-    proxy: {
-      "/api": {
-        target: "https://biscofa.runasp.net",
-        changeOrigin: true,
-        secure: true,
-      },
-    },
     hmr: {
       overlay: false,
     },

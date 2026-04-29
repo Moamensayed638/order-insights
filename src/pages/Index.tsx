@@ -13,13 +13,13 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { StatCard } from "@/components/orders/StatCard";
 import { AdminOrder, ORDER_STATUS, PAYMENT_STATUS, ORDER_TYPE, PAYMENT_METHOD } from "@/types/order";
 import { cn } from "@/lib/utils";
-import { getAuthHeaders, getStoredToken } from "@/lib/auth";
+import { apiUrl, getAuthHeaders, getStoredToken } from "@/lib/auth";
 import { useNavigate } from "react-router-dom";
 
 const ORDERS_PATH = "adminorders";
 
 async function fetchOrders(): Promise<AdminOrder[]> {
-  const res = await fetch(`/api/${ORDERS_PATH}`, {
+  const res = await fetch(apiUrl(ORDERS_PATH), {
     headers: {
       ...getAuthHeaders(),
     },
@@ -157,7 +157,7 @@ const Index = () => {
               <AlertCircle className="h-10 w-10 text-destructive" />
               <h3 className="text-lg font-semibold text-foreground">Could not load orders</h3>
               <p className="max-w-md text-sm text-muted-foreground">
-                The API at <code className="rounded bg-muted px-1">{API_URL || "VITE_API_URL"}</code> might be unreachable, or your browser is blocking it (CORS / mixed content). Try again in a moment.
+                The API at <code className="rounded bg-muted px-1">{import.meta.env.VITE_API_URL || "VITE_API_URL"}</code> might be unreachable, or your browser is blocking it (CORS / mixed content). Try again in a moment.
               </p>
               <Button variant="outline" onClick={() => refetch()}>Retry</Button>
             </div>
