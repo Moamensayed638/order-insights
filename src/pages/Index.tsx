@@ -13,12 +13,17 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { StatCard } from "@/components/orders/StatCard";
 import { AdminOrder, ORDER_STATUS, PAYMENT_STATUS, ORDER_TYPE, PAYMENT_METHOD } from "@/types/order";
 import { cn } from "@/lib/utils";
+import { getAuthHeaders, getStoredToken } from "@/lib/auth";
+import { useNavigate } from "react-router-dom";
 
-const API_URL = import.meta.env.VITE_API_URL as string;
+const ORDERS_PATH = "adminorders";
 
 async function fetchOrders(): Promise<AdminOrder[]> {
-  if (!API_URL) throw new Error("VITE_API_URL is not configured. Add it to your .env file.");
-  const res = await fetch(API_URL);
+  const res = await fetch(`/api/${ORDERS_PATH}`, {
+    headers: {
+      ...getAuthHeaders(),
+    },
+  });
   if (!res.ok) throw new Error(`Request failed: ${res.status}`);
   return res.json();
 }
@@ -31,6 +36,7 @@ type SortKey = "id" | "name" | "total" | "items" | "date";
 type SortDir = "asc" | "desc";
 
 const Index = () => {
+  const navigate = useNavigate();
   const { data, isLoading, isError, refetch, isFetching } = useQuery({
     queryKey: ["admin-orders"],
     queryFn: fetchOrders,
@@ -45,6 +51,10 @@ const Index = () => {
   useEffect(() => {
     document.title = "Admin Orders | Biscofa Dashboard";
   }, []);
+
+  useEffect(() => {
+    if (!getStoredToken()) navigate("/login", { replace: true });
+  }, [navigate]);
 
   const orders = data ?? [];
 
