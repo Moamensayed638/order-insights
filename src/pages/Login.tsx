@@ -3,7 +3,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { clearToken, extractToken, getStoredToken, storeToken } from "@/lib/auth";
+import { apiUrl, clearToken, extractToken, getStoredToken, storeToken } from "@/lib/auth";
 
 export default function Login() {
   const navigate = useNavigate();
@@ -22,7 +22,7 @@ export default function Login() {
     setLoading(true);
     try {
       clearToken();
-      const res = await fetch("/api/Auth/login", {
+      const res = await fetch(apiUrl("Auth/login"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ phoneNumber, password }),
