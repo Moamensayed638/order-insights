@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { apiUrl } from "@/lib/auth";
 import { buildResetPasswordBody } from "@/lib/reset-password";
 
 export default function ResetPassword() {
@@ -18,7 +19,7 @@ export default function ResetPassword() {
     setLoading(true);
     setMessage("");
     try {
-      const res = await fetch("/api/Auth/reset-password", {
+      const res = await fetch(apiUrl("Auth/reset-password"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(buildResetPasswordBody(email, token, newPassword)),

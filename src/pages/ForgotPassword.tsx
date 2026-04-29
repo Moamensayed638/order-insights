@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { apiUrl } from "@/lib/auth";
 import { buildForgotPasswordBody } from "@/lib/forgot-password";
 
 export default function ForgotPassword() {
@@ -16,7 +17,7 @@ export default function ForgotPassword() {
     setLoading(true);
     setMessage("");
     try {
-      const res = await fetch("/api/Auth/forgot-password", {
+      const res = await fetch(apiUrl("Auth/forgot-password"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(buildForgotPasswordBody(email)),
