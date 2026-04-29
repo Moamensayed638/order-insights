@@ -1,8 +1,8 @@
-import { useEffect, useMemo, useState, Fragment } from "react";
+import { useEffect, useMemo, useRef, useState, Fragment } from "react";
 import { useQuery } from "@tanstack/react-query";
 import {
   Search, RefreshCw, ShoppingBag, DollarSign, Users, TrendingUp, AlertCircle,
-  ChevronDown, ChevronUp, ArrowUpDown, Phone, MapPin, Gift, CreditCard, Truck, Package, User as UserIcon,
+  ChevronDown, ChevronUp, ArrowUpDown, Phone, MapPin, Gift, CreditCard, Truck, Package, User as UserIcon, MoreHorizontal,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -15,6 +15,21 @@ import { AdminOrder, ORDER_STATUS, PAYMENT_STATUS, ORDER_TYPE, PAYMENT_METHOD } 
 import { cn } from "@/lib/utils";
 import { apiUrl, getAuthHeaders, getStoredToken } from "@/lib/auth";
 import { useNavigate } from "react-router-dom";
+import { buildReceiptHtml } from "@/lib/receipt";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 const ORDERS_PATH = "adminorders";
 
@@ -47,6 +62,8 @@ const Index = () => {
   const [sortKey, setSortKey] = useState<SortKey>("id");
   const [sortDir, setSortDir] = useState<SortDir>("desc");
   const [expanded, setExpanded] = useState<number | null>(null);
+  const [receiptOrder, setReceiptOrder] = useState<AdminOrder | null>(null);
+  const receiptFrameRef = useRef<HTMLIFrameElement | null>(null);
 
   useEffect(() => {
     document.title = "Admin Orders | Biscofa Dashboard";
@@ -96,6 +113,14 @@ const Index = () => {
   const toggleSort = (k: SortKey) => {
     if (sortKey === k) setSortDir(sortDir === "asc" ? "desc" : "asc");
     else { setSortKey(k); setSortDir("asc"); }
+  };
+
+  const openReceiptPreview = (order: AdminOrder) => setReceiptOrder(order);
+
+  const handlePrintReceipt = () => {
+    const frameWindow = receiptFrameRef.current?.contentWindow;
+    frameWindow?.focus();
+    frameWindow?.print();
   };
 
   return (
@@ -180,6 +205,7 @@ const Index = () => {
                     <TableHead>Payment</TableHead>
                     <TableHead>Type</TableHead>
                     <SortHead label="Date" k="date" sortKey={sortKey} sortDir={sortDir} onClick={toggleSort} />
+                    <TableHead className="w-16 text-right">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -215,10 +241,25 @@ const Index = () => {
                           <TableCell><Badge variant="outline" className={cn("border", pay.tone)}>{pay.label}</Badge></TableCell>
                           <TableCell className="text-sm text-muted-foreground">{ORDER_TYPE[o.orderType] ?? "—"}</TableCell>
                           <TableCell className="whitespace-nowrap text-xs text-muted-foreground">{fmtDate(o.createdAt)}</TableCell>
+                          <TableCell className="text-right">
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
+                                <Button variant="ghost" size="icon" className="h-8 w-8">
+                                  <MoreHorizontal className="h-4 w-4" />
+                                  <span className="sr-only">Open order actions</span>
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
+                                <DropdownMenuItem onClick={() => openReceiptPreview(o)}>
+                                  Print
+                                </DropdownMenuItem>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                          </TableCell>
                         </TableRow>
                         {isOpen && (
                           <TableRow className="bg-muted/20 hover:bg-muted/20">
-                            <TableCell colSpan={10} className="p-0">
+                            <TableCell colSpan={11} className="p-0">
                               <div className="space-y-4 px-6 py-5">
                                 <div className="grid gap-4 md:grid-cols-4">
                                   <Detail icon={<UserIcon className="h-3.5 w-3.5" />} label="Email" value={o.user?.email} />
@@ -278,6 +319,37 @@ const Index = () => {
           )}
         </section>
       </main>
+
+      <Dialog open={Boolean(receiptOrder)} onOpenChange={(open) => !open && setReceiptOrder(null)}>
+        <DialogContent className="max-w-5xl">
+          <DialogHeader>
+            <DialogTitle>Receipt preview</DialogTitle>
+            <DialogDescription>
+              Review the receipt before printing.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="h-[70vh] overflow-hidden rounded-lg border border-border/60 bg-white">
+            {receiptOrder && (
+              <iframe
+                ref={receiptFrameRef}
+                title={`Receipt preview ${receiptOrder.id}`}
+                className="h-full w-full"
+                srcDoc={buildReceiptHtml(receiptOrder)}
+              />
+            )}
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setReceiptOrder(null)}>
+              Cancel
+            </Button>
+            <Button onClick={handlePrintReceipt} disabled={!receiptOrder}>
+              Print
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
