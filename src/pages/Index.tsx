@@ -1,21 +1,34 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, Fragment } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Search, RefreshCw, ShoppingBag, DollarSign, Users, TrendingUp, AlertCircle } from "lucide-react";
+import {
+  Search, RefreshCw, ShoppingBag, DollarSign, Users, TrendingUp, AlertCircle,
+  ChevronDown, ChevronUp, ArrowUpDown, Phone, MapPin, Gift, CreditCard, Truck, Package, User as UserIcon,
+} from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Badge } from "@/components/ui/badge";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { StatCard } from "@/components/orders/StatCard";
-import { OrderCard } from "@/components/orders/OrderCard";
-import { AdminOrder } from "@/types/order";
+import { AdminOrder, ORDER_STATUS, PAYMENT_STATUS, ORDER_TYPE, PAYMENT_METHOD } from "@/types/order";
+import { cn } from "@/lib/utils";
 
-const API_URL = "https://biscofa.runasp.net/api/AdminOrders";
+const API_URL = import.meta.env.VITE_API_URL as string;
 
 async function fetchOrders(): Promise<AdminOrder[]> {
+  if (!API_URL) throw new Error("VITE_API_URL is not configured. Add it to your .env file.");
   const res = await fetch(API_URL);
   if (!res.ok) throw new Error(`Request failed: ${res.status}`);
   return res.json();
 }
+
+const fmt = (n: number) => `${n.toFixed(2)} EGP`;
+const fmtDate = (s: string) =>
+  new Date(s).toLocaleString(undefined, { month: "short", day: "numeric", year: "numeric", hour: "2-digit", minute: "2-digit" });
+
+type SortKey = "id" | "name" | "total" | "items" | "date";
+type SortDir = "asc" | "desc";
 
 const Index = () => {
   const { data, isLoading, isError, refetch, isFetching } = useQuery({
@@ -25,6 +38,9 @@ const Index = () => {
 
   const [search, setSearch] = useState("");
   const [tab, setTab] = useState("all");
+  const [sortKey, setSortKey] = useState<SortKey>("id");
+  const [sortDir, setSortDir] = useState<SortDir>("desc");
+  const [expanded, setExpanded] = useState<number | null>(null);
 
   useEffect(() => {
     document.title = "Admin Orders | Biscofa Dashboard";
@@ -40,7 +56,7 @@ const Index = () => {
   }, [orders]);
 
   const filtered = useMemo(() => {
-    return orders.filter((o) => {
+    const list = orders.filter((o) => {
       if (tab === "pending" && o.orderStatus !== 0) return false;
       if (tab === "completed" && o.orderStatus !== 1) return false;
       if (tab === "rewards" && !o.isRewardOrder) return false;
@@ -54,7 +70,23 @@ const Index = () => {
         o.shippingAddress?.toLowerCase().includes(q)
       );
     });
-  }, [orders, search, tab]);
+    const dir = sortDir === "asc" ? 1 : -1;
+    return [...list].sort((a, b) => {
+      switch (sortKey) {
+        case "id": return (a.id - b.id) * dir;
+        case "name": return (a.user?.fullName ?? "").localeCompare(b.user?.fullName ?? "") * dir;
+        case "total": return (a.totalAmount - b.totalAmount) * dir;
+        case "items":
+          return (a.orderItems.reduce((s, i) => s + i.quantity, 0) - b.orderItems.reduce((s, i) => s + i.quantity, 0)) * dir;
+        case "date": return (new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()) * dir;
+      }
+    });
+  }, [orders, search, tab, sortKey, sortDir]);
+
+  const toggleSort = (k: SortKey) => {
+    if (sortKey === k) setSortDir(sortDir === "asc" ? "desc" : "asc");
+    else { setSortKey(k); setSortDir("asc"); }
+  };
 
   return (
     <div className="min-h-screen bg-gradient-surface">
@@ -107,7 +139,7 @@ const Index = () => {
           {isLoading ? (
             <div className="space-y-3">
               {Array.from({ length: 5 }).map((_, i) => (
-                <Skeleton key={i} className="h-28 w-full rounded-xl" />
+                <Skeleton key={i} className="h-12 w-full rounded-md" />
               ))}
             </div>
           ) : isError ? (
@@ -115,7 +147,7 @@ const Index = () => {
               <AlertCircle className="h-10 w-10 text-destructive" />
               <h3 className="text-lg font-semibold text-foreground">Could not load orders</h3>
               <p className="max-w-md text-sm text-muted-foreground">
-                The API at biscofa.runasp.net might be unreachable, or your browser is blocking it (CORS / mixed content). Try again in a moment.
+                The API at <code className="rounded bg-muted px-1">{API_URL || "VITE_API_URL"}</code> might be unreachable, or your browser is blocking it (CORS / mixed content). Try again in a moment.
               </p>
               <Button variant="outline" onClick={() => refetch()}>Retry</Button>
             </div>
@@ -124,10 +156,114 @@ const Index = () => {
               <p className="text-sm text-muted-foreground">No orders match your filters.</p>
             </div>
           ) : (
-            <div className="space-y-3">
-              {filtered.map((order) => (
-                <OrderCard key={order.id} order={order} />
-              ))}
+            <div className="overflow-hidden rounded-xl border border-border/60 bg-card shadow-soft">
+              <Table>
+                <TableHeader>
+                  <TableRow className="bg-muted/40 hover:bg-muted/40">
+                    <TableHead className="w-10" />
+                    <SortHead label="ID" k="id" sortKey={sortKey} sortDir={sortDir} onClick={toggleSort} />
+                    <SortHead label="Customer" k="name" sortKey={sortKey} sortDir={sortDir} onClick={toggleSort} />
+                    <TableHead>Phone</TableHead>
+                    <SortHead label="Items" k="items" sortKey={sortKey} sortDir={sortDir} onClick={toggleSort} className="text-right" />
+                    <SortHead label="Total" k="total" sortKey={sortKey} sortDir={sortDir} onClick={toggleSort} className="text-right" />
+                    <TableHead>Status</TableHead>
+                    <TableHead>Payment</TableHead>
+                    <TableHead>Type</TableHead>
+                    <SortHead label="Date" k="date" sortKey={sortKey} sortDir={sortDir} onClick={toggleSort} />
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {filtered.map((o) => {
+                    const status = ORDER_STATUS[o.orderStatus] ?? ORDER_STATUS[0];
+                    const pay = PAYMENT_STATUS[o.paymentStatus] ?? PAYMENT_STATUS[0];
+                    const itemCount = o.orderItems.reduce((s, i) => s + i.quantity, 0);
+                    const isOpen = expanded === o.id;
+                    return (
+                      <Fragment key={o.id}>
+                        <TableRow
+                          className="cursor-pointer transition-smooth hover:bg-muted/40"
+                          onClick={() => setExpanded(isOpen ? null : o.id)}
+                        >
+                          <TableCell>
+                            {isOpen ? <ChevronUp className="h-4 w-4 text-muted-foreground" /> : <ChevronDown className="h-4 w-4 text-muted-foreground" />}
+                          </TableCell>
+                          <TableCell className="font-mono font-semibold text-primary">#{o.id}</TableCell>
+                          <TableCell>
+                            <div className="flex items-center gap-2">
+                              <span className="font-medium text-foreground">{o.user?.fullName ?? "Unknown"}</span>
+                              {o.isRewardOrder && (
+                                <Badge className="border border-primary/30 bg-primary/10 text-primary hover:bg-primary/15">
+                                  <Gift className="mr-1 h-3 w-3" />Reward
+                                </Badge>
+                              )}
+                            </div>
+                          </TableCell>
+                          <TableCell className="text-sm text-muted-foreground">{o.user?.phoneNumber ?? "—"}</TableCell>
+                          <TableCell className="text-right tabular-nums">{itemCount}</TableCell>
+                          <TableCell className="text-right font-semibold tabular-nums">{fmt(o.totalAmount)}</TableCell>
+                          <TableCell><Badge variant="outline" className={cn("border", status.tone)}>{status.label}</Badge></TableCell>
+                          <TableCell><Badge variant="outline" className={cn("border", pay.tone)}>{pay.label}</Badge></TableCell>
+                          <TableCell className="text-sm text-muted-foreground">{ORDER_TYPE[o.orderType] ?? "—"}</TableCell>
+                          <TableCell className="whitespace-nowrap text-xs text-muted-foreground">{fmtDate(o.createdAt)}</TableCell>
+                        </TableRow>
+                        {isOpen && (
+                          <TableRow className="bg-muted/20 hover:bg-muted/20">
+                            <TableCell colSpan={10} className="p-0">
+                              <div className="space-y-4 px-6 py-5">
+                                <div className="grid gap-4 md:grid-cols-4">
+                                  <Detail icon={<UserIcon className="h-3.5 w-3.5" />} label="Email" value={o.user?.email} />
+                                  <Detail icon={<MapPin className="h-3.5 w-3.5" />} label="Shipping" value={o.shippingAddress} />
+                                  <Detail icon={<CreditCard className="h-3.5 w-3.5" />} label="Payment method" value={PAYMENT_METHOD[o.paymentMethod] ?? "—"} />
+                                  <Detail icon={<Truck className="h-3.5 w-3.5" />} label="Delivery fee" value={fmt(o.deliveryFee)} />
+                                </div>
+                                <div>
+                                  <h4 className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                                    Items ({o.orderItems.length})
+                                  </h4>
+                                  {o.orderItems.length === 0 ? (
+                                    <p className="rounded-md border border-dashed border-border bg-background/60 p-3 text-center text-sm text-muted-foreground">No items</p>
+                                  ) : (
+                                    <div className="overflow-hidden rounded-md border border-border/60 bg-background">
+                                      <Table>
+                                        <TableHeader>
+                                          <TableRow className="bg-muted/30 hover:bg-muted/30">
+                                            <TableHead>Product</TableHead>
+                                            <TableHead className="text-right">Qty</TableHead>
+                                            <TableHead className="text-right">Unit</TableHead>
+                                            <TableHead className="text-right">Discount</TableHead>
+                                            <TableHead className="text-right">Total</TableHead>
+                                          </TableRow>
+                                        </TableHeader>
+                                        <TableBody>
+                                          {o.orderItems.map((it) => (
+                                            <TableRow key={it.id}>
+                                              <TableCell className="font-medium">{it.productName}</TableCell>
+                                              <TableCell className="text-right tabular-nums">{it.quantity}</TableCell>
+                                              <TableCell className="text-right tabular-nums">{fmt(it.unitPrice)}</TableCell>
+                                              <TableCell className="text-right tabular-nums">{fmt(it.discountAmount)}</TableCell>
+                                              <TableCell className="text-right font-semibold tabular-nums">{fmt(it.totalPrice)}</TableCell>
+                                            </TableRow>
+                                          ))}
+                                        </TableBody>
+                                      </Table>
+                                    </div>
+                                  )}
+                                </div>
+                                <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+                                  <Money label="Subtotal" value={fmt(o.subTotal)} />
+                                  <Money label="Discount" value={`- ${fmt(o.discountAmount)}`} />
+                                  <Money label="Points earned" value={`${o.pointsEarned}`} />
+                                  <Money label="Total" value={fmt(o.totalAmount)} highlight />
+                                </div>
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        )}
+                      </Fragment>
+                    );
+                  })}
+                </TableBody>
+              </Table>
             </div>
           )}
         </section>
@@ -135,5 +271,39 @@ const Index = () => {
     </div>
   );
 };
+
+function SortHead({
+  label, k, sortKey, sortDir, onClick, className,
+}: {
+  label: string; k: SortKey; sortKey: SortKey; sortDir: SortDir; onClick: (k: SortKey) => void; className?: string;
+}) {
+  const active = sortKey === k;
+  return (
+    <TableHead className={cn("cursor-pointer select-none", className)} onClick={() => onClick(k)}>
+      <span className={cn("inline-flex items-center gap-1", active && "text-foreground")}>
+        {label}
+        {active ? (sortDir === "asc" ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />) : <ArrowUpDown className="h-3 w-3 opacity-50" />}
+      </span>
+    </TableHead>
+  );
+}
+
+function Detail({ icon, label, value }: { icon: React.ReactNode; label: string; value?: string }) {
+  return (
+    <div className="space-y-1">
+      <p className="inline-flex items-center gap-1.5 text-[11px] font-medium uppercase tracking-wider text-muted-foreground">{icon}{label}</p>
+      <p className="truncate text-sm text-foreground">{value || "—"}</p>
+    </div>
+  );
+}
+
+function Money({ label, value, highlight }: { label: string; value: string; highlight?: boolean }) {
+  return (
+    <div className={cn("rounded-lg border border-border/60 bg-background p-3", highlight && "bg-gradient-primary text-primary-foreground border-transparent shadow-glow")}>
+      <p className={cn("text-[11px] font-medium uppercase tracking-wider", highlight ? "text-primary-foreground/80" : "text-muted-foreground")}>{label}</p>
+      <p className="mt-1 font-semibold">{value}</p>
+    </div>
+  );
+}
 
 export default Index;
