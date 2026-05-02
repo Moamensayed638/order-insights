@@ -40,14 +40,14 @@ export interface AdminOrder {
 }
 
 export const ORDER_STATUS: Record<number, { label: string; tone: string }> = {
-  0: { label: "Pending", tone: "bg-warning/15 text-warning-foreground border-warning/30" },
+  0: { label: "Pending",   tone: "bg-warning/15 text-warning border-warning/30" },
   1: { label: "Completed", tone: "bg-accent/15 text-accent border-accent/30" },
   2: { label: "Cancelled", tone: "bg-destructive/15 text-destructive border-destructive/30" },
 };
 
 export const PAYMENT_STATUS: Record<number, { label: string; tone: string }> = {
-  0: { label: "Unpaid", tone: "bg-muted text-muted-foreground border-border" },
-  1: { label: "Paid", tone: "bg-accent/15 text-accent border-accent/30" },
+  0: { label: "Unpaid", tone: "bg-muted/80 text-muted-foreground border-border/60" },
+  1: { label: "Paid",   tone: "bg-accent/15 text-accent border-accent/30" },
 };
 
 export const ORDER_TYPE: Record<number, string> = {
