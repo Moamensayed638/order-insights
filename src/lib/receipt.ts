@@ -3,22 +3,43 @@ import { ORDER_TYPE, type AdminOrder } from "@/types/order";
 const fmt = (n: number) => `${n.toFixed(2)} EGP`;
 
 const fmtDate = (s: string) =>
-  new Date(s).toLocaleString(undefined, { month: "short", day: "numeric", year: "numeric", hour: "2-digit", minute: "2-digit" });
+  new Date(s).toLocaleString(undefined, {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+
+function escapeHtml(value: unknown): string {
+  if (value === null || value === undefined) return "";
+  const str = String(value);
+
+  const amp = "\u0026";
+  return str
+    .replace(/&/g, amp + "amp;")
+    .replace(/</g, amp + "lt;")
+    .replace(/>/g, amp + "gt;")
+    .replace(/"/g, amp + "quot;")
+    .replace(/'/g, amp + "#39;");
+}
 
 export function buildReceiptHtml(order: AdminOrder) {
   const rows = order.orderItems
     .map(
       (item) => `
         <tr>
-          <td>${item.productName}</td>
+          <td>${escapeHtml(item.productName)}</td>
           <td class="right">${item.quantity}</td>
-          <td class="right">${fmt(item.unitPrice)}</td>
-          <td class="right">${fmt(item.discountAmount)}</td>
-          <td class="right">${fmt(item.totalPrice)}</td>
+          <td class="right">${escapeHtml(fmt(item.unitPrice))}</td>
+          <td class="right">${escapeHtml(fmt(item.discountAmount))}</td>
+          <td class="right">${escapeHtml(fmt(item.totalPrice))}</td>
         </tr>
       `,
     )
     .join("");
+
+  const orderTypeLabel = ORDER_TYPE[order.orderType] ?? "—";
 
   return `
     <html>
@@ -40,11 +61,11 @@ export function buildReceiptHtml(order: AdminOrder) {
       <body>
         <h1>Order Receipt #${order.id}</h1>
         <div class="meta">
-          <div><strong>Customer:</strong> ${order.user?.fullName ?? "Unknown"}</div>
-          <div><strong>Phone:</strong> ${order.user?.phoneNumber ?? "—"}</div>
-          <div><strong>Date:</strong> ${fmtDate(order.createdAt)}</div>
-          <div><strong>Type:</strong> ${ORDER_TYPE[order.orderType] ?? "—"}</div>
-          <div><strong>Address:</strong> ${order.shippingAddress ?? "—"}</div>
+          <div><strong>Customer:</strong> ${escapeHtml(order.user?.fullName ?? "Unknown")}</div>
+          <div><strong>Phone:</strong> ${escapeHtml(order.user?.phoneNumber ?? "—")}</div>
+          <div><strong>Date:</strong> ${escapeHtml(fmtDate(order.createdAt))}</div>
+          <div><strong>Type:</strong> ${escapeHtml(orderTypeLabel)}</div>
+          <div><strong>Address:</strong> ${escapeHtml(order.shippingAddress ?? "—")}</div>
         </div>
         <div class="actions">
           <button type="button" onclick="window.print()">Print</button>
@@ -65,10 +86,10 @@ export function buildReceiptHtml(order: AdminOrder) {
           </tbody>
         </table>
         <div class="summary">
-          <div><span>Subtotal</span><span>${fmt(order.subTotal)}</span></div>
-          <div><span>Discount</span><span>- ${fmt(order.discountAmount)}</span></div>
-          <div><span>Delivery fee</span><span>${fmt(order.deliveryFee)}</span></div>
-          <div><strong>Total</strong><strong>${fmt(order.totalAmount)}</strong></div>
+          <div><span>Subtotal</span><span>${escapeHtml(fmt(order.subTotal))}</span></div>
+          <div><span>Discount</span><span>- ${escapeHtml(fmt(order.discountAmount))}</span></div>
+          <div><span>Delivery fee</span><span>${escapeHtml(fmt(order.deliveryFee))}</span></div>
+          <div><strong>Total</strong><strong>${escapeHtml(fmt(order.totalAmount))}</strong></div>
         </div>
       </body>
     </html>

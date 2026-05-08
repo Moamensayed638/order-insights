@@ -1,5 +1,5 @@
 import { type ReactNode, useEffect, useMemo, useRef, useState, Fragment } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Search, RefreshCw, ShoppingBag, DollarSign, Users, TrendingUp, AlertCircle,
   ChevronDown, ChevronUp, ArrowUpDown, Phone, MapPin, Gift, CreditCard, Truck,
@@ -18,9 +18,10 @@ import {
   AdminOrder, ORDER_STATUS, PAYMENT_STATUS, ORDER_TYPE, PAYMENT_METHOD,
 } from "@/types/order";
 import { cn } from "@/lib/utils";
-import { apiUrl, clearToken, getAuthHeaders, getStoredToken } from "@/lib/auth";
+import { clearToken } from "@/lib/auth";
 import { useNavigate } from "react-router-dom";
 import { buildReceiptHtml } from "@/lib/receipt";
+import { fetchOrders, updateOrderStatus } from "@/lib/adminOrders";
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
@@ -28,14 +29,10 @@ import {
   Dialog, DialogContent, DialogDescription, DialogFooter,
   DialogHeader, DialogTitle,
 } from "@/components/ui/dialog";
-
-const ORDERS_PATH = "adminorders";
-
-async function fetchOrders(): Promise<AdminOrder[]> {
-  const res = await fetch(apiUrl(ORDERS_PATH), { headers: { ...getAuthHeaders() } });
-  if (!res.ok) throw new Error(`Request failed: ${res.status}`);
-  return res.json();
-}
+import {
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from "@/components/ui/select";
+import { toast } from "sonner";
 
 const fmt = (n: number) => `${n.toFixed(2)} EGP`;
 const fmtDate = (s: string) =>
@@ -49,38 +46,50 @@ type SortDir = "asc" | "desc";
 
 const Index = () => {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const { data, isLoading, isError, refetch, isFetching } = useQuery({
     queryKey: ["admin-orders"],
     queryFn: fetchOrders,
   });
 
-  const [search, setSearch]       = useState("");
-  const [tab, setTab]             = useState("all");
-  const [sortKey, setSortKey]     = useState<SortKey>("id");
-  const [sortDir, setSortDir]     = useState<SortDir>("desc");
-  const [expanded, setExpanded]   = useState<number | null>(null);
+  const [search, setSearch] = useState("");
+  const [tab, setTab] = useState("all");
+  const [sortKey, setSortKey] = useState<SortKey>("id");
+  const [sortDir, setSortDir] = useState<SortDir>("desc");
+  const [expanded, setExpanded] = useState<number | null>(null);
   const [receiptOrder, setReceiptOrder] = useState<AdminOrder | null>(null);
   const receiptFrameRef = useRef<HTMLIFrameElement | null>(null);
 
+  const statusMutation = useMutation({
+    mutationFn: ({ orderId, status }: { orderId: number; status: number }) =>
+      updateOrderStatus(orderId, status),
+    onSuccess: (updatedOrder) => {
+      queryClient.setQueryData<AdminOrder[]>(["admin-orders"], (current = []) =>
+        current.map((order) => (order.id === updatedOrder.id ? updatedOrder : order)),
+      );
+      toast.success(`Order #${updatedOrder.id} status updated`);
+    },
+    onError: (error) => {
+      toast.error(error instanceof Error ? error.message : "Failed to update order status");
+    },
+  });
+
   useEffect(() => { document.title = "Biscofa — Admin Orders"; }, []);
-  useEffect(() => {
-    if (!getStoredToken()) navigate("/login", { replace: true });
-  }, [navigate]);
 
   const orders = data ?? [];
 
   const stats = useMemo(() => {
-    const revenue   = orders.reduce((s, o) => s + o.totalAmount, 0);
+    const revenue = orders.reduce((s, o) => s + o.totalAmount, 0);
     const customers = new Set(orders.map((o) => o.userId)).size;
-    const items     = orders.reduce((s, o) => s + o.orderItems.reduce((q, i) => q + i.quantity, 0), 0);
+    const items = orders.reduce((s, o) => s + o.orderItems.reduce((q, i) => q + i.quantity, 0), 0);
     return { revenue, customers, items, count: orders.length };
   }, [orders]);
 
   const filtered = useMemo(() => {
     const list = orders.filter((o) => {
-      if (tab === "pending"   && o.orderStatus !== 0) return false;
+      if (tab === "pending" && o.orderStatus !== 0) return false;
       if (tab === "completed" && o.orderStatus !== 1) return false;
-      if (tab === "rewards"   && !o.isRewardOrder)   return false;
+      if (tab === "rewards" && !o.isRewardOrder) return false;
       if (!search) return true;
       const q = search.toLowerCase();
       return (
@@ -94,14 +103,14 @@ const Index = () => {
     const dir = sortDir === "asc" ? 1 : -1;
     return [...list].sort((a, b) => {
       switch (sortKey) {
-        case "id":    return (a.id - b.id) * dir;
-        case "name":  return (a.user?.fullName ?? "").localeCompare(b.user?.fullName ?? "") * dir;
+        case "id": return (a.id - b.id) * dir;
+        case "name": return (a.user?.fullName ?? "").localeCompare(b.user?.fullName ?? "") * dir;
         case "total": return (a.totalAmount - b.totalAmount) * dir;
         case "items": return (
           a.orderItems.reduce((s, i) => s + i.quantity, 0) -
           b.orderItems.reduce((s, i) => s + i.quantity, 0)
         ) * dir;
-        case "date":  return (new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()) * dir;
+        case "date": return (new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()) * dir;
       }
     });
   }, [orders, search, tab, sortKey, sortDir]);
@@ -120,6 +129,10 @@ const Index = () => {
   function handleLogout() {
     clearToken();
     navigate("/login", { replace: true });
+  }
+
+  function handleStatusChange(orderId: number, value: string) {
+    statusMutation.mutate({ orderId, status: Number(value) });
   }
 
   return (
@@ -297,25 +310,25 @@ const Index = () => {
                 <TableHeader>
                   <TableRow className="border-b border-border/60 bg-muted/30 hover:bg-muted/30">
                     <TableHead className="w-10 py-3" />
-                    <SortHead label="ID"       k="id"    sortKey={sortKey} sortDir={sortDir} onClick={toggleSort} />
-                    <SortHead label="Customer" k="name"  sortKey={sortKey} sortDir={sortDir} onClick={toggleSort} />
+                    <SortHead label="ID" k="id" sortKey={sortKey} sortDir={sortDir} onClick={toggleSort} />
+                    <SortHead label="Customer" k="name" sortKey={sortKey} sortDir={sortDir} onClick={toggleSort} />
                     <TableHead className="text-[11px] font-mono uppercase tracking-wider py-3 text-muted-foreground">Phone</TableHead>
-                    <SortHead label="Items"    k="items" sortKey={sortKey} sortDir={sortDir} onClick={toggleSort} className="text-right" />
-                    <SortHead label="Total"    k="total" sortKey={sortKey} sortDir={sortDir} onClick={toggleSort} className="text-right" />
+                    <SortHead label="Items" k="items" sortKey={sortKey} sortDir={sortDir} onClick={toggleSort} className="text-right" />
+                    <SortHead label="Total" k="total" sortKey={sortKey} sortDir={sortDir} onClick={toggleSort} className="text-right" />
                     <TableHead className="text-[11px] font-mono uppercase tracking-wider py-3 text-muted-foreground">Status</TableHead>
                     <TableHead className="text-[11px] font-mono uppercase tracking-wider py-3 text-muted-foreground">Payment</TableHead>
                     <TableHead className="text-[11px] font-mono uppercase tracking-wider py-3 text-muted-foreground">Type</TableHead>
-                    <SortHead label="Date"     k="date"  sortKey={sortKey} sortDir={sortDir} onClick={toggleSort} />
+                    <SortHead label="Date" k="date" sortKey={sortKey} sortDir={sortDir} onClick={toggleSort} />
                     <TableHead className="w-12 py-3" />
                   </TableRow>
                 </TableHeader>
 
                 <TableBody>
                   {filtered.map((o, rowIdx) => {
-                    const status   = ORDER_STATUS[o.orderStatus]   ?? ORDER_STATUS[0];
-                    const pay      = PAYMENT_STATUS[o.paymentStatus] ?? PAYMENT_STATUS[0];
+                    const status = ORDER_STATUS[o.orderStatus] ?? ORDER_STATUS[0];
+                    const pay = PAYMENT_STATUS[o.paymentStatus] ?? PAYMENT_STATUS[0];
                     const itemCount = o.orderItems.reduce((s, i) => s + i.quantity, 0);
-                    const isOpen   = expanded === o.id;
+                    const isOpen = expanded === o.id;
 
                     return (
                       <Fragment key={o.id}>
@@ -373,7 +386,29 @@ const Index = () => {
                           </TableCell>
 
                           <TableCell className="py-3">
-                            <StatusBadge tone={status.tone} label={status.label} />
+                            <Select
+                              value={String(o.orderStatus)}
+                              onValueChange={(value) => handleStatusChange(o.id, value)}
+                              disabled={statusMutation.isPending}
+                            >
+                              <SelectTrigger
+                                className={cn(
+                                  "h-8 min-w-[138px] border-border/60 bg-background/70 px-2.5 text-[10px] font-mono uppercase tracking-wide",
+                                  status.tone
+                                )}
+                                onClick={(e) => e.stopPropagation()}
+                                aria-label={`Order ${o.id} status`}
+                              >
+                                <SelectValue placeholder={status.label} />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {Object.entries(ORDER_STATUS).map(([value, option]) => (
+                                  <SelectItem key={value} value={value} className="text-[10px] font-mono uppercase">
+                                    {option.label}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
                           </TableCell>
 
                           <TableCell className="py-3">
@@ -419,10 +454,10 @@ const Index = () => {
                               <div className="px-6 py-5 space-y-5 border-l-2 border-primary/30 ml-4">
                                 {/* Detail grid */}
                                 <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-4">
-                                  <Detail icon={<UserIcon className="h-3.5 w-3.5" />}  label="Email"          value={o.user?.email} />
-                                  <Detail icon={<MapPin className="h-3.5 w-3.5" />}    label="Shipping"       value={o.shippingAddress} />
+                                  <Detail icon={<UserIcon className="h-3.5 w-3.5" />} label="Email" value={o.user?.email} />
+                                  <Detail icon={<MapPin className="h-3.5 w-3.5" />} label="Shipping" value={o.shippingAddress} />
                                   <Detail icon={<CreditCard className="h-3.5 w-3.5" />} label="Payment method" value={PAYMENT_METHOD[o.paymentMethod] ?? "—"} />
-                                  <Detail icon={<Truck className="h-3.5 w-3.5" />}     label="Delivery fee"   value={fmt(o.deliveryFee)} />
+                                  <Detail icon={<Truck className="h-3.5 w-3.5" />} label="Delivery fee" value={fmt(o.deliveryFee)} />
                                 </div>
 
                                 {/* Items table */}
@@ -467,10 +502,10 @@ const Index = () => {
 
                                 {/* Money summary */}
                                 <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-                                  <Money label="Subtotal"     value={fmt(o.subTotal)} />
-                                  <Money label="Discount"     value={`− ${fmt(o.discountAmount)}`} />
+                                  <Money label="Subtotal" value={fmt(o.subTotal)} />
+                                  <Money label="Discount" value={`− ${fmt(o.discountAmount)}`} />
                                   <Money label="Points earned" value={`${o.pointsEarned} pts`} />
-                                  <Money label="Total"        value={fmt(o.totalAmount)} highlight />
+                                  <Money label="Total" value={fmt(o.totalAmount)} highlight />
                                 </div>
                               </div>
                             </TableCell>

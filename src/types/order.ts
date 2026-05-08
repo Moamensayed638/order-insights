@@ -2,7 +2,7 @@ export interface OrderUser {
   fullName: string;
   phoneNumber: string;
   email: string;
-  customerCode: string;
+  customerCode?: string;
   id: string;
 }
 
@@ -16,13 +16,13 @@ export interface OrderItem {
   unitPrice: number;
   discountAmount: number;
   totalPrice: number;
-  modifiers: unknown[];
+  modifiers?: unknown[];
 }
 
 export interface AdminOrder {
   id: number;
   userId: string;
-  user: OrderUser;
+  user?: OrderUser;
   subTotal: number;
   discountAmount: number;
   totalAmount: number;
@@ -33,7 +33,7 @@ export interface AdminOrder {
   orderStatus: number;
   paymentStatus: number;
   paymentMethod: number;
-  shippingAddress: string;
+  shippingAddress?: string;
   orderType: number;
   deliveryFee: number;
   isRewardOrder: boolean;
