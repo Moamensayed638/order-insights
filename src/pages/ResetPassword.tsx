@@ -1,23 +1,43 @@
-import { FormEvent, useEffect, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
-import { Mail, KeyRound, Lock, ArrowLeft } from "lucide-react";
+import { FormEvent, useEffect, useMemo, useState } from "react";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
+import { Lock, ArrowLeft } from "lucide-react";
 import { apiUrl } from "@/lib/auth";
 import { buildResetPasswordBody } from "@/lib/reset-password";
 import { AuthShell, AuthCard, AuthField, AuthButton } from "./Login";
 import { cn } from "@/lib/utils";
 
+type ResetPasswordError = {
+  description?: string;
+};
+
 export default function ResetPassword() {
   const navigate = useNavigate();
-  const [email, setEmail]           = useState("");
-  const [token, setToken]           = useState("");
+  const [searchParams] = useSearchParams();
   const [newPassword, setNewPassword] = useState("");
   const [message, setMessage]       = useState<{ text: string; ok: boolean } | null>(null);
   const [loading, setLoading]       = useState(false);
+  const email = useMemo(() => searchParams.get("email")?.trim() ?? "", [searchParams]);
+  const token = useMemo(() => searchParams.get("token") ?? "", [searchParams]);
+  const hasValidResetLink = Boolean(email && token);
+  const invalidLinkMessage = "This reset link is incomplete. Request a new password reset email.";
 
   useEffect(() => { document.title = "Biscofa — Reset Password"; }, []);
+  useEffect(() => {
+    if (!hasValidResetLink) {
+      setMessage({ text: invalidLinkMessage, ok: false });
+      return;
+    }
+
+    setMessage(null);
+  }, [hasValidResetLink]);
 
   async function onSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
+    if (!hasValidResetLink) {
+      setMessage({ text: invalidLinkMessage, ok: false });
+      return;
+    }
+
     setLoading(true);
     setMessage(null);
     try {
@@ -26,11 +46,18 @@ export default function ResetPassword() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(buildResetPasswordBody(email, token, newPassword)),
       });
-      if (!res.ok) throw new Error("Request failed");
+      if (!res.ok) {
+        const errorText = await readResetPasswordError(res);
+        throw new Error(errorText);
+      }
+
       setMessage({ text: "Password reset successfully! Redirecting to sign in…", ok: true });
       window.setTimeout(() => navigate("/login", { replace: true }), 1500);
-    } catch {
-      setMessage({ text: "Could not reset password. Check your token and try again.", ok: false });
+    } catch (error) {
+      setMessage({
+        text: error instanceof Error ? error.message : "Could not reset password. Check your token and try again.",
+        ok: false,
+      });
     } finally {
       setLoading(false);
     }
@@ -43,33 +70,17 @@ export default function ResetPassword() {
         subtitle={`Create a new password${email ? ` for ${email}` : " for your account"}.`}
       >
         <form className="space-y-4" onSubmit={onSubmit}>
-          <AuthField
-            icon={<Mail className="h-4 w-4" />}
-            label="Email address"
-            type="email"
-            value={email}
-            onChange={setEmail}
-            placeholder="admin@biscofa.com"
-            autoComplete="email"
-          />
-          <AuthField
-            icon={<KeyRound className="h-4 w-4" />}
-            label="Reset token"
-            type="text"
-            value={token}
-            onChange={setToken}
-            placeholder="Paste your reset token"
-            autoComplete="one-time-code"
-          />
-          <AuthField
-            icon={<Lock className="h-4 w-4" />}
-            label="New password"
-            type="password"
-            value={newPassword}
-            onChange={setNewPassword}
-            placeholder="Minimum 8 characters"
-            autoComplete="new-password"
-          />
+          {hasValidResetLink && (
+            <AuthField
+              icon={<Lock className="h-4 w-4" />}
+              label="New password"
+              type="password"
+              value={newPassword}
+              onChange={setNewPassword}
+              placeholder="Minimum 8 characters"
+              autoComplete="new-password"
+            />
+          )}
 
           {message && (
             <p className={cn(
@@ -82,7 +93,7 @@ export default function ResetPassword() {
             </p>
           )}
 
-          <AuthButton loading={loading} label="Reset password" loadingLabel="Resetting…" />
+          {hasValidResetLink && <AuthButton loading={loading} label="Reset password" loadingLabel="Resetting…" />}
 
           <p className="text-center text-xs text-muted-foreground pt-1">
             <Link
@@ -97,4 +108,28 @@ export default function ResetPassword() {
       </AuthCard>
     </AuthShell>
   );
+}
+
+async function readResetPasswordError(response: Response) {
+  try {
+    const payload = (await response.json()) as ResetPasswordError[] | { message?: string };
+
+    if (Array.isArray(payload)) {
+      const descriptions = payload
+        .map((item) => item.description?.trim())
+        .filter((value): value is string => Boolean(value));
+
+      if (descriptions.length > 0) {
+        return descriptions.join(" ");
+      }
+    }
+
+    if (typeof payload.message === "string" && payload.message.trim()) {
+      return payload.message.trim();
+    }
+  } catch {
+    // Fall through to the generic message.
+  }
+
+  return "Could not reset password. Check your token and try again.";
 }
