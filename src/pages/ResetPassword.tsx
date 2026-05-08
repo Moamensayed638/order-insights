@@ -1,8 +1,8 @@
 import { FormEvent, useEffect, useMemo, useState } from "react";
-import { Link, useNavigate, useSearchParams } from "react-router-dom";
+import { Link, useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { Lock, ArrowLeft } from "lucide-react";
 import { apiUrl } from "@/lib/auth";
-import { buildResetPasswordBody } from "@/lib/reset-password";
+import { buildResetPasswordBody, getRawResetTokenFromSearch } from "@/lib/reset-password";
 import { AuthShell, AuthCard, AuthField, AuthButton } from "./Login";
 import { cn } from "@/lib/utils";
 
@@ -11,13 +11,14 @@ type ResetPasswordError = {
 };
 
 export default function ResetPassword() {
+  const { search } = useLocation();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const [newPassword, setNewPassword] = useState("");
   const [message, setMessage]       = useState<{ text: string; ok: boolean } | null>(null);
   const [loading, setLoading]       = useState(false);
   const email = useMemo(() => searchParams.get("email")?.trim() ?? "", [searchParams]);
-  const token = useMemo(() => searchParams.get("token") ?? "", [searchParams]);
+  const token = useMemo(() => getRawResetTokenFromSearch(search), [search]);
   const hasValidResetLink = Boolean(email && token);
   const invalidLinkMessage = "This reset link is incomplete. Request a new password reset email.";
 
