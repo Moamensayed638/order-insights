@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildResetPasswordBody } from "./reset-password";
+import { buildResetPasswordBody } from "@/lib/reset-password";
 
 describe("buildResetPasswordBody", () => {
   it("keeps the reset token and trims the email", () => {

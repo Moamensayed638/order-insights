@@ -9,7 +9,7 @@ import {
   logout,
   storeRefreshToken,
   storeToken,
-} from "./auth";
+} from "@/lib/auth";
 
 beforeEach(() => {
   window.localStorage.clear();

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { getRawResetTokenFromSearch } from "./reset-password";
+import { getRawResetTokenFromSearch } from "@/lib/reset-password";
 
 describe("getRawResetTokenFromSearch", () => {
   it("preserves the encoded reset token from the query string", () => {

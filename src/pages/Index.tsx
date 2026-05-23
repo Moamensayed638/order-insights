@@ -1,9 +1,9 @@
 import { type ReactNode, useEffect, useMemo, useRef, useState, Fragment } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
-  Search, RefreshCw, ShoppingBag, DollarSign, Users, TrendingUp, AlertCircle,
-  ChevronDown, ChevronUp, ArrowUpDown, Phone, MapPin, Gift, CreditCard, Truck,
-  User as UserIcon, MoreHorizontal, LogOut, Package,
+  Search, ShoppingBag, DollarSign, Users, TrendingUp, AlertCircle,
+  ChevronDown, ChevronUp, ArrowUpDown, MapPin, Gift, CreditCard, Truck,
+  User as UserIcon, MoreHorizontal, Package,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -18,8 +18,7 @@ import {
   AdminOrder, ORDER_STATUS, PAYMENT_STATUS, ORDER_TYPE, PAYMENT_METHOD,
 } from "@/types/order";
 import { cn } from "@/lib/utils";
-import { clearToken, getStoredRefreshToken, logout } from "@/lib/auth";
-import { useNavigate } from "react-router-dom";
+import { AppHeader } from "@/components/AppHeader";
 import { buildReceiptHtml } from "@/lib/receipt";
 import { fetchOrders, updateOrderStatus } from "@/lib/adminOrders";
 import {
@@ -45,7 +44,6 @@ type SortKey = "id" | "name" | "total" | "items" | "date";
 type SortDir = "asc" | "desc";
 
 const Index = () => {
-  const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { data, isLoading, isError, refetch, isFetching } = useQuery({
     queryKey: ["admin-orders"],
@@ -59,7 +57,6 @@ const Index = () => {
   const [expanded, setExpanded] = useState<number | null>(null);
   const [receiptOrder, setReceiptOrder] = useState<AdminOrder | null>(null);
   const receiptFrameRef = useRef<HTMLIFrameElement | null>(null);
-  const [isLoggingOut, setIsLoggingOut] = useState(false);
 
   const statusMutation = useMutation({
     mutationFn: ({ orderId, status }: { orderId: number; status: number }) =>
@@ -127,88 +124,13 @@ const Index = () => {
     receiptFrameRef.current?.contentWindow?.print();
   };
 
-  async function handleLogout() {
-    if (isLoggingOut) return;
-
-    setIsLoggingOut(true);
-    let logoutError: unknown = null;
-    try {
-      const refreshToken = getStoredRefreshToken();
-      if (refreshToken) {
-        await logout(refreshToken);
-      }
-    } catch (error) {
-      logoutError = error;
-    } finally {
-      clearToken();
-      setIsLoggingOut(false);
-      navigate("/login", { replace: true });
-    }
-
-    if (logoutError) {
-      toast.error(logoutError instanceof Error ? logoutError.message : "Failed to log out");
-    }
-  }
-
   function handleStatusChange(orderId: number, value: string) {
     statusMutation.mutate({ orderId, status: Number(value) });
   }
 
   return (
     <div className="min-h-screen bg-background">
-
-      {/* ── Header ── */}
-      <header className="sticky top-0 z-40 border-b border-border/60 bg-card/80 backdrop-blur-xl">
-        <div className="container flex items-center justify-between gap-4 py-4">
-
-          {/* Brand */}
-          <div className="flex items-center gap-3">
-            <div className="relative h-8 w-8 rounded-md bg-gradient-primary flex items-center justify-center shadow-glow">
-              <Package className="h-4 w-4 text-primary-foreground" />
-            </div>
-            <div>
-              <span className="font-display text-lg font-semibold tracking-tight text-foreground leading-none">
-                Biscofa
-              </span>
-              <p className="text-[10px] font-mono uppercase tracking-[0.12em] text-muted-foreground leading-none mt-0.5">
-                Admin Console
-              </p>
-            </div>
-          </div>
-
-          {/* Live indicator + actions */}
-          <div className="flex items-center gap-3">
-            <div className="hidden sm:flex items-center gap-1.5 rounded-full border border-primary/20 bg-primary/8 px-3 py-1">
-              <span className="h-1.5 w-1.5 rounded-full bg-primary animate-pulse" />
-              <span className="text-[10px] font-mono font-medium uppercase tracking-widest text-primary">
-                Live
-              </span>
-            </div>
-
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => refetch()}
-              disabled={isFetching}
-              className="border-border/60 bg-muted/40 text-foreground hover:bg-muted hover:border-primary/40 h-8 gap-1.5 text-xs font-mono"
-            >
-              <RefreshCw className={cn("h-3.5 w-3.5", isFetching && "animate-spin-slow")} />
-              Refresh
-            </Button>
-
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={handleLogout}
-              disabled={isLoggingOut}
-              className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
-              title="Sign out"
-            >
-              <LogOut className="h-4 w-4" />
-            </Button>
-          </div>
-        </div>
-      </header>
+      <AppHeader onRefresh={() => refetch()} isRefreshing={isFetching} />
 
       <main className="container space-y-8 py-8">
 
@@ -262,13 +184,13 @@ const Index = () => {
           style={{ animationDelay: "200ms" }}
         >
           <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-            <Tabs value={tab} onValueChange={setTab}>
-              <TabsList className="bg-muted/60 border border-border/60 h-9 p-1 gap-0.5">
+            <Tabs value={tab} onValueChange={setTab} className="w-full md:w-auto">
+              <TabsList className="bg-muted/60 border border-border/60 h-9 p-1 gap-0.5 w-full md:w-auto flex">
                 {["all", "pending", "completed", "rewards"].map((t) => (
                   <TabsTrigger
                     key={t}
                     value={t}
-                    className="px-4 h-7 text-xs font-mono uppercase tracking-wide data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-none rounded-md"
+                    className="flex-1 md:flex-none px-2 md:px-4 h-7 text-[10px] sm:text-xs font-mono uppercase tracking-wide data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-none rounded-md"
                   >
                     {t}
                   </TabsTrigger>
@@ -325,7 +247,7 @@ const Index = () => {
           ) : (
 
             /* ── Orders table ── */
-            <div className="overflow-hidden rounded-lg border border-border/60 bg-card shadow-card">
+            <div className="overflow-x-auto rounded-lg border border-border/60 bg-card shadow-card">
               <Table>
                 <TableHeader>
                   <TableRow className="border-b border-border/60 bg-muted/30 hover:bg-muted/30">

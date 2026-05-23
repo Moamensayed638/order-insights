@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { buildReceiptHtml } from "./receipt";
+import { buildReceiptHtml } from "@/lib/receipt";
 import type { AdminOrder } from "@/types/order";
 
 const order: AdminOrder = {
