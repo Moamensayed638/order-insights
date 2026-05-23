@@ -1,7 +1,15 @@
 import { type ReactNode, FormEvent, useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Eye, EyeOff, Loader2, Package, Phone, Lock } from "lucide-react";
-import { apiUrl, clearToken, extractToken, getStoredToken, storeToken } from "@/lib/auth";
+import {
+  apiUrl,
+  clearToken,
+  extractRefreshToken,
+  extractToken,
+  getStoredToken,
+  storeRefreshToken,
+  storeToken,
+} from "@/lib/auth";
 import { cn } from "@/lib/utils";
 
 export default function Login() {
@@ -30,8 +38,12 @@ export default function Login() {
       });
       const data = await res.json().catch(() => null);
       const token = extractToken(data);
+      const refreshToken = extractRefreshToken(data);
       if (!res.ok || !token) throw new Error("Invalid login response");
       storeToken(token);
+      if (refreshToken) {
+        storeRefreshToken(refreshToken);
+      }
       navigate("/adminorders", { replace: true });
     } catch {
       setError("Invalid phone number or password.");

@@ -18,7 +18,7 @@ import {
   AdminOrder, ORDER_STATUS, PAYMENT_STATUS, ORDER_TYPE, PAYMENT_METHOD,
 } from "@/types/order";
 import { cn } from "@/lib/utils";
-import { clearToken } from "@/lib/auth";
+import { clearToken, getStoredRefreshToken, logout } from "@/lib/auth";
 import { useNavigate } from "react-router-dom";
 import { buildReceiptHtml } from "@/lib/receipt";
 import { fetchOrders, updateOrderStatus } from "@/lib/adminOrders";
@@ -59,6 +59,7 @@ const Index = () => {
   const [expanded, setExpanded] = useState<number | null>(null);
   const [receiptOrder, setReceiptOrder] = useState<AdminOrder | null>(null);
   const receiptFrameRef = useRef<HTMLIFrameElement | null>(null);
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
 
   const statusMutation = useMutation({
     mutationFn: ({ orderId, status }: { orderId: number; status: number }) =>
@@ -126,9 +127,27 @@ const Index = () => {
     receiptFrameRef.current?.contentWindow?.print();
   };
 
-  function handleLogout() {
-    clearToken();
-    navigate("/login", { replace: true });
+  async function handleLogout() {
+    if (isLoggingOut) return;
+
+    setIsLoggingOut(true);
+    let logoutError: unknown = null;
+    try {
+      const refreshToken = getStoredRefreshToken();
+      if (refreshToken) {
+        await logout(refreshToken);
+      }
+    } catch (error) {
+      logoutError = error;
+    } finally {
+      clearToken();
+      setIsLoggingOut(false);
+      navigate("/login", { replace: true });
+    }
+
+    if (logoutError) {
+      toast.error(logoutError instanceof Error ? logoutError.message : "Failed to log out");
+    }
   }
 
   function handleStatusChange(orderId: number, value: string) {
@@ -181,6 +200,7 @@ const Index = () => {
               variant="ghost"
               size="icon"
               onClick={handleLogout}
+              disabled={isLoggingOut}
               className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
               title="Sign out"
             >
