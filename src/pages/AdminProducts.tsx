@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   AlertCircle, Coffee, Package, Plus, Pencil, Search, Trash2, TrendingUp,
-  CheckCircle2, XCircle, Trophy,
+  CheckCircle2, XCircle, Trophy, Minus,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -30,10 +30,13 @@ import { AppHeader } from "@/components/AppHeader";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import {
-  createProduct, deleteProduct, fetchCategories, fetchProducts,
-  fetchTopSelling, filterProductsBySearch, formatDiscountTimestamp,
-  resolveEditCategoryId, resolveImageUrl, updateProduct, validateProductForm,
+  createModifierGroup, createModifierOption, createProduct, createSize,
+  deleteProduct, fetchCategories, fetchProducts, fetchTopSelling,
+  filterProductsBySearch, formatDiscountTimestamp, resolveEditCategoryId,
+  resolveImageUrl, updateProduct, validateModifierGroups, validateProductForm,
+  validateSizes,
 } from "@/lib/adminProducts";
+import type { ModifierGroupDraft, SizeDraft } from "@/lib/adminProducts";
 import type { AdminProduct, ProductFormInput } from "@/types/product";
 
 const fmt = (n: number) => `${n.toFixed(2)} EGP`;
@@ -81,8 +84,13 @@ const AdminProducts = () => {
   const [tab, setTab] = useState<TabValue>("all");
   const [search, setSearch] = useState("");
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [wizardStep, setWizardStep] = useState<1 | 2 | 3>(1);
   const [editing, setEditing] = useState<AdminProduct | null>(null);
   const [form, setForm] = useState<FormState>(emptyForm);
+  const [sizes, setSizes] = useState<SizeDraft[]>([{ name: "", price: "", isDefault: true }]);
+  const [modifierGroups, setModifierGroups] = useState<ModifierGroupDraft[]>([
+    { name: "", isRequired: false, maxSelections: "1", options: [{ name: "", extraPrice: "0" }] },
+  ]);
   const [formError, setFormError] = useState<string | null>(null);
   const [deletingProduct, setDeletingProduct] = useState<AdminProduct | null>(null);
 
@@ -112,6 +120,9 @@ const AdminProducts = () => {
     setForm(emptyForm);
     setEditing(null);
     setFormError(null);
+    setWizardStep(1);
+    setSizes([{ name: "", price: "", isDefault: true }]);
+    setModifierGroups([{ name: "", isRequired: false, maxSelections: "1", options: [{ name: "", extraPrice: "0" }] }]);
   }
 
   function openCreate() {
@@ -139,8 +150,26 @@ const AdminProducts = () => {
   }
 
   const saveMutation = useMutation({
-    mutationFn: async (input: { id?: number; payload: ProductFormInput }) =>
-      input.id != null ? updateProduct(input.id, input.payload) : createProduct(input.payload),
+    mutationFn: async (input: { id?: number; payload: ProductFormInput }) => {
+      if (input.id != null) return updateProduct(input.id, input.payload);
+      const product = await createProduct(input.payload);
+      await Promise.all(sizes.map((s) =>
+        createSize(product.id, { name: s.name.trim(), price: Number(s.price), isDefault: s.isDefault }),
+      ));
+      for (const g of modifierGroups) {
+        const group = await createModifierGroup(product.id, {
+          name: g.name.trim(),
+          isRequired: g.isRequired,
+          maxSelections: Number(g.maxSelections),
+        });
+        if (group?.id) {
+          await Promise.all(g.options.map((o) =>
+            createModifierOption(group.id, { name: o.name.trim(), extraPrice: Number(o.extraPrice) }),
+          ));
+        }
+      }
+      return product;
+    },
     onSuccess: (_data, variables) => {
       toast.success(variables.id != null ? "Product updated" : "Product created");
       setDialogOpen(false);
@@ -177,18 +206,31 @@ const AdminProducts = () => {
     e.preventDefault();
     setFormError(null);
 
-    const err = validateProductForm(
-      {
-        name: form.name,
-        price: form.price,
-        categoryId: form.categoryId,
-        calories: form.calories,
-        pointsReward: form.pointsReward,
-        discountPercentage: form.discountPercentage,
-      },
-      { isEditing: Boolean(editing), hasImage: Boolean(form.image) },
-    );
-    if (err) return setFormError(err);
+    if (wizardStep === 1) {
+      const err = validateProductForm(
+        {
+          name: form.name,
+          description: form.description,
+          price: form.price,
+          categoryId: form.categoryId,
+          calories: form.calories,
+          pointsReward: form.pointsReward,
+          discountPercentage: form.discountPercentage,
+        },
+        { isEditing: Boolean(editing), hasImage: Boolean(form.image) },
+      );
+      if (err) return setFormError(err);
+      if (!editing) return setWizardStep(2);
+    }
+
+    if (wizardStep === 2) {
+      const err = validateSizes(sizes);
+      if (err) return setFormError(err);
+      return setWizardStep(3);
+    }
+
+    const err3 = validateModifierGroups(modifierGroups);
+    if (err3) return setFormError(err3);
 
     const discountPercentage =
       form.discountPercentage.trim() === "" ? null : Number(form.discountPercentage);
@@ -402,75 +444,273 @@ const AdminProducts = () => {
             </DialogDescription>
           </DialogHeader>
 
+          {/* Step indicator (create only) */}
+          {!editing && (
+            <div className="flex items-center gap-2 py-1">
+              {([1, 2, 3] as const).map((s) => (
+                <div key={s} className="flex items-center gap-2">
+                  <div className={cn(
+                    "h-6 w-6 rounded-full flex items-center justify-center text-[10px] font-mono font-semibold",
+                    wizardStep === s
+                      ? "bg-primary text-primary-foreground"
+                      : wizardStep > s
+                      ? "bg-primary/20 text-primary"
+                      : "bg-muted text-muted-foreground",
+                  )}>
+                    {s}
+                  </div>
+                  <span className={cn(
+                    "text-[10px] font-mono uppercase tracking-wide",
+                    wizardStep === s ? "text-foreground" : "text-muted-foreground/60",
+                  )}>
+                    {s === 1 ? "Details" : s === 2 ? "Sizes" : "Modifiers"}
+                  </span>
+                  {s < 3 && <div className="h-px w-6 bg-border/60" />}
+                </div>
+              ))}
+            </div>
+          )}
+
           <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="grid gap-4 sm:grid-cols-2">
-              <Field label="Name" required>
-                <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} required />
-              </Field>
-              <Field label="Category" required>
-                <Select value={form.categoryId} onValueChange={(v) => setForm({ ...form, categoryId: v })}>
-                  <SelectTrigger>
-                    <SelectValue placeholder={categoriesQuery.isLoading ? "Loading…" : "Pick a category"} />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {categories.map((c) => (
-                      <SelectItem key={c.id} value={String(c.id)}>{c.name}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </Field>
-            </div>
+            {/* Step 1: Basic info */}
+            {(editing || wizardStep === 1) && (
+              <>
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <Field label="Name" required>
+                    <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
+                  </Field>
+                  <Field label="Category" required>
+                    <Select value={form.categoryId} onValueChange={(v) => setForm({ ...form, categoryId: v })}>
+                      <SelectTrigger>
+                        <SelectValue placeholder={categoriesQuery.isLoading ? "Loading…" : "Pick a category"} />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {categories.map((c) => (
+                          <SelectItem key={c.id} value={String(c.id)}>{c.name}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </Field>
+                </div>
 
-            <Field label="Description">
-              <Textarea
-                value={form.description}
-                onChange={(e) => setForm({ ...form, description: e.target.value })}
-                rows={3}
-              />
-            </Field>
+                <Field label="Description" required>
+                  <Textarea
+                    value={form.description}
+                    onChange={(e) => setForm({ ...form, description: e.target.value })}
+                    rows={3}
+                  />
+                </Field>
 
-            <div className="grid gap-4 sm:grid-cols-3">
-              <Field label="Price (EGP)" required>
-                <Input type="number" step="0.01" min="0" value={form.price}
-                  onChange={(e) => setForm({ ...form, price: e.target.value })} required />
-              </Field>
-              <Field label="Calories">
-                <Input type="number" min="0" value={form.calories}
-                  onChange={(e) => setForm({ ...form, calories: e.target.value })} />
-              </Field>
-              <Field label="Points reward">
-                <Input type="number" min="0" value={form.pointsReward}
-                  onChange={(e) => setForm({ ...form, pointsReward: e.target.value })} />
-              </Field>
-            </div>
+                <div className="grid gap-4 sm:grid-cols-3">
+                  <Field label="Price (EGP)" required>
+                    <Input type="number" step="0.01" min="0" value={form.price}
+                      onChange={(e) => setForm({ ...form, price: e.target.value })} />
+                  </Field>
+                  <Field label="Calories">
+                    <Input type="number" min="0" value={form.calories}
+                      onChange={(e) => setForm({ ...form, calories: e.target.value })} />
+                  </Field>
+                  <Field label="Points reward">
+                    <Input type="number" min="0" value={form.pointsReward}
+                      onChange={(e) => setForm({ ...form, pointsReward: e.target.value })} />
+                  </Field>
+                </div>
 
-            <div className="grid gap-4 sm:grid-cols-3">
-              <Field label="Discount %">
-                <Input type="number" min="0" max="100" step="0.01" value={form.discountPercentage}
-                  onChange={(e) => setForm({ ...form, discountPercentage: e.target.value })} placeholder="0" />
-              </Field>
-              <Field label="Discount start">
-                <Input type="datetime-local" value={form.discountStart}
-                  onChange={(e) => setForm({ ...form, discountStart: e.target.value })} />
-              </Field>
-              <Field label="Discount end">
-                <Input type="datetime-local" value={form.discountEnd}
-                  onChange={(e) => setForm({ ...form, discountEnd: e.target.value })} />
-              </Field>
-            </div>
+                <div className="grid gap-4 sm:grid-cols-3">
+                  <Field label="Discount % (optional)">
+                    <Input type="number" min="0" max="100" step="0.01" value={form.discountPercentage}
+                      onChange={(e) => setForm({ ...form, discountPercentage: e.target.value })} placeholder="—" />
+                  </Field>
+                  <Field label="Discount start (optional)">
+                    <Input type="datetime-local" value={form.discountStart}
+                      onChange={(e) => setForm({ ...form, discountStart: e.target.value })} />
+                  </Field>
+                  <Field label="Discount end (optional)">
+                    <Input type="datetime-local" value={form.discountEnd}
+                      onChange={(e) => setForm({ ...form, discountEnd: e.target.value })} />
+                  </Field>
+                </div>
 
-            <Field label={editing ? "Replace image (optional, ≤ 2 MB)" : "Image (required, ≤ 2 MB)"}>
-              <Input
-                type="file"
-                accept="image/*"
-                onChange={(e) => handleImageChange(e.target.files?.[0] ?? null)}
-              />
-              {editing && editing.imageUrl && (
-                <p className="mt-1 text-[10px] font-mono text-muted-foreground">
-                  Current: {editing.imageUrl.split("/").pop()}
+                <Field label={editing ? "Replace image (optional, ≤ 2 MB)" : "Image (required, ≤ 2 MB)"} required={!editing}>
+                  <Input
+                    type="file"
+                    accept="image/*"
+                    onChange={(e) => handleImageChange(e.target.files?.[0] ?? null)}
+                  />
+                  {editing && editing.imageUrl && (
+                    <p className="mt-1 text-[10px] font-mono text-muted-foreground">
+                      Current: {editing.imageUrl.split("/").pop()}
+                    </p>
+                  )}
+                </Field>
+              </>
+            )}
+
+            {/* Step 2: Sizes */}
+            {!editing && wizardStep === 2 && (
+              <div className="space-y-3">
+                <p className="text-xs text-muted-foreground font-body">
+                  Add at least one size. Mark one as the default.
                 </p>
-              )}
-            </Field>
+                {sizes.map((s, i) => (
+                  <div key={i} className="flex items-end gap-2 rounded-md border border-border/60 bg-muted/20 p-3">
+                    <Field label="Name" required>
+                      <Input
+                        value={s.name}
+                        onChange={(e) => setSizes(sizes.map((x, j) => j === i ? { ...x, name: e.target.value } : x))}
+                        placeholder="e.g. Medium"
+                        className="w-32"
+                      />
+                    </Field>
+                    <Field label="Price (EGP)" required>
+                      <Input
+                        type="number" step="0.01" min="0"
+                        value={s.price}
+                        onChange={(e) => setSizes(sizes.map((x, j) => j === i ? { ...x, price: e.target.value } : x))}
+                        placeholder="0"
+                        className="w-28"
+                      />
+                    </Field>
+                    <div className="flex items-center gap-1.5 pb-1">
+                      <input
+                        type="radio"
+                        name="sizeDefault"
+                        checked={s.isDefault}
+                        onChange={() => setSizes(sizes.map((x, j) => ({ ...x, isDefault: j === i })))}
+                        className="accent-primary"
+                        id={`size-default-${i}`}
+                      />
+                      <label htmlFor={`size-default-${i}`} className="text-[10px] font-mono uppercase tracking-wide text-muted-foreground cursor-pointer">
+                        Default
+                      </label>
+                    </div>
+                    {sizes.length > 1 && (
+                      <Button
+                        type="button" variant="ghost" size="icon"
+                        onClick={() => setSizes(sizes.filter((_, j) => j !== i))}
+                        className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10 mb-0.5"
+                      >
+                        <Minus className="h-3.5 w-3.5" />
+                      </Button>
+                    )}
+                  </div>
+                ))}
+                <Button
+                  type="button" variant="outline" size="sm"
+                  onClick={() => setSizes([...sizes, { name: "", price: "", isDefault: false }])}
+                  className="gap-1.5 border-border/60 text-xs"
+                >
+                  <Plus className="h-3.5 w-3.5" /> Add size
+                </Button>
+              </div>
+            )}
+
+            {/* Step 3: Modifier groups */}
+            {!editing && wizardStep === 3 && (
+              <div className="space-y-4">
+                <p className="text-xs text-muted-foreground font-body">
+                  Add at least one modifier group, each with at least one option.
+                </p>
+                {modifierGroups.map((g, gi) => (
+                  <div key={gi} className="rounded-md border border-border/60 bg-muted/20 p-3 space-y-3">
+                    <div className="flex items-end gap-2">
+                      <Field label={`Group #${gi + 1} name`} required>
+                        <Input
+                          value={g.name}
+                          onChange={(e) => setModifierGroups(modifierGroups.map((x, j) => j === gi ? { ...x, name: e.target.value } : x))}
+                          placeholder="e.g. Extras"
+                          className="w-40"
+                        />
+                      </Field>
+                      <Field label="Max selections" required>
+                        <Input
+                          type="number" min="1"
+                          value={g.maxSelections}
+                          onChange={(e) => setModifierGroups(modifierGroups.map((x, j) => j === gi ? { ...x, maxSelections: e.target.value } : x))}
+                          className="w-24"
+                        />
+                      </Field>
+                      <div className="flex items-center gap-1.5 pb-1">
+                        <input
+                          type="checkbox"
+                          checked={g.isRequired}
+                          onChange={(e) => setModifierGroups(modifierGroups.map((x, j) => j === gi ? { ...x, isRequired: e.target.checked } : x))}
+                          className="accent-primary"
+                          id={`group-required-${gi}`}
+                        />
+                        <label htmlFor={`group-required-${gi}`} className="text-[10px] font-mono uppercase tracking-wide text-muted-foreground cursor-pointer">
+                          Required
+                        </label>
+                      </div>
+                      {modifierGroups.length > 1 && (
+                        <Button
+                          type="button" variant="ghost" size="icon"
+                          onClick={() => setModifierGroups(modifierGroups.filter((_, j) => j !== gi))}
+                          className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10 mb-0.5"
+                        >
+                          <Minus className="h-3.5 w-3.5" />
+                        </Button>
+                      )}
+                    </div>
+
+                    <div className="space-y-2 pl-2 border-l border-border/40">
+                      {g.options.map((o, oi) => (
+                        <div key={oi} className="flex items-end gap-2">
+                          <Field label={`Option #${oi + 1} name`} required>
+                            <Input
+                              value={o.name}
+                              onChange={(e) => setModifierGroups(modifierGroups.map((x, j) =>
+                                j === gi ? { ...x, options: x.options.map((op, k) => k === oi ? { ...op, name: e.target.value } : op) } : x,
+                              ))}
+                              placeholder="e.g. Sugar"
+                              className="w-36"
+                            />
+                          </Field>
+                          <Field label="Extra price (EGP)" required>
+                            <Input
+                              type="number" step="0.01" min="0"
+                              value={o.extraPrice}
+                              onChange={(e) => setModifierGroups(modifierGroups.map((x, j) =>
+                                j === gi ? { ...x, options: x.options.map((op, k) => k === oi ? { ...op, extraPrice: e.target.value } : op) } : x,
+                              ))}
+                              className="w-28"
+                              placeholder="0"
+                            />
+                          </Field>
+                          {g.options.length > 1 && (
+                            <Button
+                              type="button" variant="ghost" size="icon"
+                              onClick={() => setModifierGroups(modifierGroups.map((x, j) =>
+                                j === gi ? { ...x, options: x.options.filter((_, k) => k !== oi) } : x,
+                              ))}
+                              className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10 mb-0.5"
+                            >
+                              <Minus className="h-3.5 w-3.5" />
+                            </Button>
+                          )}
+                        </div>
+                      ))}
+                      <Button
+                        type="button" variant="outline" size="sm"
+                        onClick={() => setModifierGroups(modifierGroups.map((x, j) =>
+                          j === gi ? { ...x, options: [...x.options, { name: "", extraPrice: "0" }] } : x,
+                        ))}
+                        className="gap-1.5 border-border/60 text-xs"
+                      >
+                        <Plus className="h-3.5 w-3.5" /> Add option
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+                <Button
+                  type="button" variant="outline" size="sm"
+                  onClick={() => setModifierGroups([...modifierGroups, { name: "", isRequired: false, maxSelections: "1", options: [{ name: "", extraPrice: "0" }] }])}
+                  className="gap-1.5 border-border/60 text-xs"
+                >
+                  <Plus className="h-3.5 w-3.5" /> Add group
+                </Button>
+              </div>
+            )}
 
             {formError && (
               <div className="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-xs text-destructive">
@@ -479,20 +719,37 @@ const AdminProducts = () => {
             )}
 
             <DialogFooter>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => { setDialogOpen(false); resetForm(); }}
-                className="border-border/60"
-              >
-                Cancel
-              </Button>
+              {!editing && wizardStep > 1 ? (
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => { setFormError(null); setWizardStep((s) => (s - 1) as 1 | 2 | 3); }}
+                  className="border-border/60"
+                >
+                  Back
+                </Button>
+              ) : (
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => { setDialogOpen(false); resetForm(); }}
+                  className="border-border/60"
+                >
+                  Cancel
+                </Button>
+              )}
               <Button
                 type="submit"
                 disabled={saveMutation.isPending}
                 className="bg-gradient-primary text-primary-foreground hover:opacity-90 shadow-elegant"
               >
-                {saveMutation.isPending ? "Saving…" : editing ? "Save changes" : "Create product"}
+                {saveMutation.isPending
+                  ? "Saving…"
+                  : editing
+                  ? "Save changes"
+                  : wizardStep < 3
+                  ? "Next"
+                  : "Create product"}
               </Button>
             </DialogFooter>
           </form>

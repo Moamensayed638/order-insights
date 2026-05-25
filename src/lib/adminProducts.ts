@@ -179,6 +179,7 @@ export async function updateProduct(
 
 export type ProductFormDraft = {
   name: string;
+  description: string;
   price: string;
   categoryId: string;
   calories: string;
@@ -186,12 +187,65 @@ export type ProductFormDraft = {
   discountPercentage: string;
 };
 
+export type SizeDraft = {
+  name: string;
+  price: string;
+  isDefault: boolean;
+};
+
+export type ModifierOptionDraft = {
+  name: string;
+  extraPrice: string;
+};
+
+export type ModifierGroupDraft = {
+  name: string;
+  isRequired: boolean;
+  maxSelections: string;
+  options: ModifierOptionDraft[];
+};
+
+export function validateSizes(sizes: SizeDraft[]): string | null {
+  if (sizes.length === 0) return "Add at least one size";
+  for (let i = 0; i < sizes.length; i++) {
+    const s = sizes[i];
+    const n = i + 1;
+    if (!s.name.trim()) return `Size #${n}: name is required`;
+    const price = Number(s.price);
+    if (!Number.isFinite(price) || price <= 0) return `Size #${n}: price must be greater than 0`;
+  }
+  const defaults = sizes.filter((s) => s.isDefault).length;
+  if (defaults !== 1) return "Mark exactly one size as default";
+  return null;
+}
+
+export function validateModifierGroups(groups: ModifierGroupDraft[]): string | null {
+  if (groups.length === 0) return "Add at least one modifier group";
+  for (let gi = 0; gi < groups.length; gi++) {
+    const g = groups[gi];
+    const gn = gi + 1;
+    if (!g.name.trim()) return `Group #${gn}: name is required`;
+    const max = Number(g.maxSelections);
+    if (!Number.isFinite(max) || max < 1) return `Group #${gn}: max selections must be at least 1`;
+    if (g.options.length === 0) return `Group #${gn}: add at least one option`;
+    for (let oi = 0; oi < g.options.length; oi++) {
+      const o = g.options[oi];
+      const on = oi + 1;
+      if (!o.name.trim()) return `Group #${gn}, option #${on}: name is required`;
+      const ep = Number(o.extraPrice);
+      if (!Number.isFinite(ep) || ep < 0) return `Group #${gn}, option #${on}: extra price must be ≥ 0`;
+    }
+  }
+  return null;
+}
+
 export function validateProductForm(
   draft: ProductFormDraft,
   opts: { isEditing: boolean; hasImage: boolean },
 ): string | null {
   if (!draft.name.trim()) return "Name is required";
   if (draft.name.trim().length < 2) return "Name must be at least 2 characters";
+  if (!draft.description.trim()) return "Description is required";
 
   const price = Number(draft.price);
   if (!Number.isFinite(price) || price <= 0) return "Price must be greater than 0";
@@ -215,6 +269,44 @@ export function validateProductForm(
   if (!opts.isEditing && !opts.hasImage) return "Image is required when creating a product";
 
   return null;
+}
+
+export async function createSize(
+  productId: number,
+  input: { name: string; price: number; isDefault: boolean },
+): Promise<void> {
+  const res = await fetch(apiUrl(`${PRODUCTS_PATH}/${productId}/sizes`), {
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...getAuthHeaders() },
+    body: JSON.stringify(input),
+  });
+  await ensureOk(res);
+}
+
+export async function createModifierGroup(
+  productId: number,
+  input: { name: string; isRequired: boolean; maxSelections: number },
+): Promise<{ id: number }> {
+  const res = await fetch(apiUrl(`${PRODUCTS_PATH}/${productId}/modifier-groups`), {
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...getAuthHeaders() },
+    body: JSON.stringify(input),
+  });
+  await ensureOk(res);
+  const payload = await parseJson(res);
+  return payload as { id: number };
+}
+
+export async function createModifierOption(
+  groupId: number,
+  input: { name: string; extraPrice: number },
+): Promise<void> {
+  const res = await fetch(apiUrl(`${PRODUCTS_PATH}/modifier-groups/${groupId}/options`), {
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...getAuthHeaders() },
+    body: JSON.stringify(input),
+  });
+  await ensureOk(res);
 }
 
 export async function deleteProduct(id: number): Promise<void> {

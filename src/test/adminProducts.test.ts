@@ -12,6 +12,7 @@ import type { AdminProduct, Category } from "@/types/product";
 
 const validDraft: ProductFormDraft = {
   name: "Mocha",
+  description: "A rich mocha drink",
   price: "100",
   categoryId: "12",
   calories: "10",
@@ -55,6 +56,12 @@ describe("validateProductForm", () => {
   it("rejects an empty name", () => {
     const err = validateProductForm({ ...validDraft, name: "  " }, { isEditing: true, hasImage: false });
     expect(err).toBe("Name is required");
+  });
+
+  it("rejects an empty description", () => {
+    expect(
+      validateProductForm({ ...validDraft, description: "  " }, { isEditing: true, hasImage: false }),
+    ).toBe("Description is required");
   });
 
   it("rejects a one-character name", () => {
