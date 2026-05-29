@@ -1,8 +1,8 @@
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { Link, useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { Lock, ArrowLeft } from "lucide-react";
-import { apiUrl } from "@/lib/auth";
-import { buildResetPasswordBody, getRawResetTokenFromSearch } from "@/lib/reset-password";
+import { apiUrl, clearToken } from "@/lib/auth";
+import { buildResetPasswordBody, getRawResetTokenFromSearch, validateNewPassword } from "@/lib/reset-password";
 import { AuthShell, AuthCard, AuthField, AuthButton } from "./Login";
 import { cn } from "@/lib/utils";
 
@@ -15,6 +15,7 @@ export default function ResetPassword() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [message, setMessage]       = useState<{ text: string; ok: boolean } | null>(null);
   const [loading, setLoading]       = useState(false);
   const email = useMemo(() => searchParams.get("email")?.trim() ?? "", [searchParams]);
@@ -39,6 +40,12 @@ export default function ResetPassword() {
       return;
     }
 
+    const validationError = validateNewPassword(newPassword, confirmPassword);
+    if (validationError) {
+      setMessage({ text: validationError, ok: false });
+      return;
+    }
+
     setLoading(true);
     setMessage(null);
     try {
@@ -52,6 +59,7 @@ export default function ResetPassword() {
         throw new Error(errorText);
       }
 
+      clearToken();
       setMessage({ text: "Password reset successfully! Redirecting to sign in…", ok: true });
       window.setTimeout(() => navigate("/login", { replace: true }), 1500);
     } catch (error) {
@@ -79,6 +87,18 @@ export default function ResetPassword() {
               value={newPassword}
               onChange={setNewPassword}
               placeholder="Minimum 8 characters"
+              autoComplete="new-password"
+            />
+          )}
+
+          {hasValidResetLink && (
+            <AuthField
+              icon={<Lock className="h-4 w-4" />}
+              label="Confirm password"
+              type="password"
+              value={confirmPassword}
+              onChange={setConfirmPassword}
+              placeholder="Re-enter your new password"
               autoComplete="new-password"
             />
           )}

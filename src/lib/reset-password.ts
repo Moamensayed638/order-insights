@@ -6,6 +6,16 @@ export function buildResetPasswordBody(email: string, token: string, newPassword
   };
 }
 
+export function validateNewPassword(newPassword: string, confirmPassword: string): string | null {
+  if (newPassword.length < 8) {
+    return "Password must be at least 8 characters.";
+  }
+  if (newPassword !== confirmPassword) {
+    return "Passwords do not match.";
+  }
+  return null;
+}
+
 export function getRawResetTokenFromSearch(search: string) {
   const query = search.startsWith("?") ? search.slice(1) : search;
   if (!query) return "";
