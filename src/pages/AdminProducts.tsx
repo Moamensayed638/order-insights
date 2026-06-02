@@ -30,11 +30,12 @@ import { AppHeader } from "@/components/AppHeader";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import {
-  createModifierGroup, createModifierOption, createProduct, createSize,
-  deleteProduct, fetchCategories, fetchProducts, fetchTopSelling,
+  applyDefaultSize, createModifierGroup, createModifierOption, createProduct,
+  createSize, deleteProduct, fetchCategories, fetchProducts, fetchTopSelling,
   filterProductsBySearch, formatDiscountTimestamp, resolveEditCategoryId,
-  resolveImageUrl, updateProduct, validateModifierGroups, validateProductForm,
-  validateSizes,
+  resolveImageUrl, updateModifierOption, updateProduct, updateSize,
+  validateModifierGroups, validateModifierOptionEdit, validateProductForm,
+  validateSizeEdit, validateSizes,
 } from "@/lib/adminProducts";
 import type { ModifierGroupDraft, SizeDraft } from "@/lib/adminProducts";
 import type { AdminProduct, ProductFormInput } from "@/types/product";
@@ -71,6 +72,10 @@ const emptyForm: FormState = {
 
 const MAX_IMAGE_BYTES = 2 * 1024 * 1024;
 
+type SizeEditRow = { id: number; name: string; price: string; isDefault: boolean };
+type OptionEditRow = { id: number; name: string; extraPrice: string };
+type OptionGroupEdit = { groupId: number; groupName: string; options: OptionEditRow[] };
+
 const AdminProducts = () => {
   const queryClient = useQueryClient();
 
@@ -93,6 +98,13 @@ const AdminProducts = () => {
   ]);
   const [formError, setFormError] = useState<string | null>(null);
   const [deletingProduct, setDeletingProduct] = useState<AdminProduct | null>(null);
+  const [sizeEdits, setSizeEdits] = useState<SizeEditRow[]>([]);
+  const [optionEdits, setOptionEdits] = useState<OptionGroupEdit[]>([]);
+  const [sizeRowError, setSizeRowError] = useState<{ id: number; msg: string } | null>(null);
+  const [optionRowError, setOptionRowError] = useState<{ id: number; msg: string } | null>(null);
+  const [savingSizes, setSavingSizes] = useState(false);
+  const [savingOptions, setSavingOptions] = useState(false);
+  const [editTab, setEditTab] = useState<"details" | "sizes" | "modifiers">("details");
 
   useEffect(() => { document.title = "Biscofa — Admin Products"; }, []);
 
@@ -123,6 +135,25 @@ const AdminProducts = () => {
     setWizardStep(1);
     setSizes([{ name: "", price: "", isDefault: true }]);
     setModifierGroups([{ name: "", isRequired: false, maxSelections: "1", options: [{ name: "", extraPrice: "0" }] }]);
+    setSizeEdits([]);
+    setOptionEdits([]);
+    setSizeRowError(null);
+    setOptionRowError(null);
+    setSavingSizes(false);
+    setSavingOptions(false);
+    setEditTab("details");
+  }
+
+  function seedEdits(product: AdminProduct) {
+    setSizeEdits(product.sizes.map((s) => ({
+      id: s.id, name: s.name, price: String(s.price), isDefault: s.isDefault,
+    })));
+    setOptionEdits(product.modifierGroups.map((g) => ({
+      groupId: g.id, groupName: g.name,
+      options: g.options.map((o) => ({ id: o.id, name: o.name, extraPrice: String(o.extraPrice) })),
+    })));
+    setSizeRowError(null);
+    setOptionRowError(null);
   }
 
   function openCreate() {
@@ -146,6 +177,8 @@ const AdminProducts = () => {
       discountEnd: product.discountEnd ? product.discountEnd.slice(0, 16) : "",
       image: null,
     });
+    seedEdits(product);
+    setEditTab("details");
     setDialogOpen(true);
   }
 
@@ -192,6 +225,68 @@ const AdminProducts = () => {
     onError: (error) =>
       toast.error(error instanceof Error ? error.message : "Failed to delete product"),
   });
+
+  function selectDefaultSize(index: number) {
+    setSizeEdits((rows) => applyDefaultSize(rows, index));
+  }
+
+  async function saveAllSizes() {
+    setSizeRowError(null);
+    for (const row of sizeEdits) {
+      const err = validateSizeEdit(row);
+      if (err) return setSizeRowError({ id: row.id, msg: err });
+    }
+    setSavingSizes(true);
+    try {
+      await Promise.all(sizeEdits.map((s) =>
+        updateSize(s.id, { name: s.name.trim(), price: Number(s.price), isDefault: s.isDefault }),
+      ));
+      setEditing((prev) => prev && {
+        ...prev,
+        sizes: prev.sizes.map((s) => {
+          const edited = sizeEdits.find((e) => e.id === s.id);
+          return edited ? { ...s, name: edited.name.trim(), price: Number(edited.price), isDefault: edited.isDefault } : s;
+        }),
+      });
+      toast.success("Sizes saved");
+      queryClient.invalidateQueries({ queryKey: ["admin-products"] });
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Failed to save sizes");
+    } finally {
+      setSavingSizes(false);
+    }
+  }
+
+  async function saveAllOptions() {
+    setOptionRowError(null);
+    const rows = optionEdits.flatMap((g) => g.options);
+    for (const row of rows) {
+      const err = validateModifierOptionEdit(row);
+      if (err) return setOptionRowError({ id: row.id, msg: err });
+    }
+    setSavingOptions(true);
+    try {
+      await Promise.all(rows.map((o) =>
+        updateModifierOption(o.id, { name: o.name.trim(), extraPrice: Number(o.extraPrice) }),
+      ));
+      setEditing((prev) => prev && {
+        ...prev,
+        modifierGroups: prev.modifierGroups.map((g) => ({
+          ...g,
+          options: g.options.map((o) => {
+            const edited = rows.find((e) => e.id === o.id);
+            return edited ? { ...o, name: edited.name.trim(), extraPrice: Number(edited.extraPrice) } : o;
+          }),
+        })),
+      });
+      toast.success("Modifiers saved");
+      queryClient.invalidateQueries({ queryKey: ["admin-products"] });
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Failed to save modifiers");
+    } finally {
+      setSavingOptions(false);
+    }
+  }
 
   function handleImageChange(file: File | null) {
     if (file && file.size > MAX_IMAGE_BYTES) {
@@ -471,9 +566,30 @@ const AdminProducts = () => {
             </div>
           )}
 
+          {/* Edit tabs */}
+          {editing && (
+            <Tabs value={editTab} onValueChange={(v) => setEditTab(v as typeof editTab)}>
+              <TabsList className="bg-muted/60 border border-border/60 h-9 p-1 gap-0.5 w-full flex">
+                {([
+                  ["details", "Details"],
+                  ["sizes", "Sizes"],
+                  ["modifiers", "Modifiers"],
+                ] as const).map(([value, label]) => (
+                  <TabsTrigger
+                    key={value}
+                    value={value}
+                    className="flex-1 h-7 text-xs font-mono uppercase tracking-wide data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-none rounded-md"
+                  >
+                    {label}
+                  </TabsTrigger>
+                ))}
+              </TabsList>
+            </Tabs>
+          )}
+
           <form onSubmit={handleSubmit} className="space-y-4">
             {/* Step 1: Basic info */}
-            {(editing || wizardStep === 1) && (
+            {((editing && editTab === "details") || (!editing && wizardStep === 1)) && (
               <>
                 <div className="grid gap-4 sm:grid-cols-2">
                   <Field label="Name" required>
@@ -544,6 +660,96 @@ const AdminProducts = () => {
                   )}
                 </Field>
               </>
+            )}
+
+            {/* Edit: existing sizes */}
+            {editing && editTab === "sizes" && (
+              <div className="space-y-3 rounded-md border border-border/60 bg-muted/10 p-3">
+                {sizeEdits.length === 0 && (
+                  <p className="text-xs text-muted-foreground font-body">This product has no sizes.</p>
+                )}
+                {sizeEdits.map((s, i) => (
+                  <div key={s.id} className="space-y-1">
+                    <div className="flex items-end gap-2">
+                      <Field label="Name" required>
+                        <Input
+                          value={s.name}
+                          onChange={(e) => setSizeEdits(sizeEdits.map((x, j) => j === i ? { ...x, name: e.target.value } : x))}
+                          className="w-32"
+                        />
+                      </Field>
+                      <Field label="Price (EGP)" required>
+                        <Input
+                          type="number" step="0.01" min="0"
+                          value={s.price}
+                          onChange={(e) => setSizeEdits(sizeEdits.map((x, j) => j === i ? { ...x, price: e.target.value } : x))}
+                          className="w-28"
+                        />
+                      </Field>
+                      <div className="flex items-center gap-1.5 pb-1">
+                        <input
+                          type="radio"
+                          name="editSizeDefault"
+                          checked={s.isDefault}
+                          onChange={() => selectDefaultSize(i)}
+                          className="accent-primary"
+                          id={`edit-size-default-${s.id}`}
+                        />
+                        <label htmlFor={`edit-size-default-${s.id}`} className="text-[10px] font-mono uppercase tracking-wide text-muted-foreground cursor-pointer">
+                          Default
+                        </label>
+                      </div>
+                    </div>
+                    {sizeRowError?.id === s.id && (
+                      <p className="text-[11px] text-destructive font-body">{sizeRowError.msg}</p>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Edit: existing modifier options */}
+            {editing && editTab === "modifiers" && (
+              <div className="space-y-3 rounded-md border border-border/60 bg-muted/10 p-3">
+                {optionEdits.length === 0 && (
+                  <p className="text-xs text-muted-foreground font-body">This product has no modifier options.</p>
+                )}
+                {optionEdits.map((g, gi) => (
+                  <div key={g.groupId} className="space-y-2">
+                    <p className="text-xs font-medium text-foreground">{g.groupName}</p>
+                    <div className="space-y-2 pl-2 border-l border-border/40">
+                      {g.options.map((o, oi) => (
+                        <div key={o.id} className="space-y-1">
+                          <div className="flex items-end gap-2">
+                            <Field label="Name" required>
+                              <Input
+                                value={o.name}
+                                onChange={(e) => setOptionEdits(optionEdits.map((x, j) =>
+                                  j === gi ? { ...x, options: x.options.map((op, k) => k === oi ? { ...op, name: e.target.value } : op) } : x,
+                                ))}
+                                className="w-36"
+                              />
+                            </Field>
+                            <Field label="Extra price (EGP)" required>
+                              <Input
+                                type="number" step="0.01" min="0"
+                                value={o.extraPrice}
+                                onChange={(e) => setOptionEdits(optionEdits.map((x, j) =>
+                                  j === gi ? { ...x, options: x.options.map((op, k) => k === oi ? { ...op, extraPrice: e.target.value } : op) } : x,
+                                ))}
+                                className="w-28"
+                              />
+                            </Field>
+                          </div>
+                          {optionRowError?.id === o.id && (
+                            <p className="text-[11px] text-destructive font-body">{optionRowError.msg}</p>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
             )}
 
             {/* Step 2: Sizes */}
@@ -735,22 +941,42 @@ const AdminProducts = () => {
                   onClick={() => { setDialogOpen(false); resetForm(); }}
                   className="border-border/60"
                 >
-                  Cancel
+                  {editing && editTab !== "details" ? "Close" : "Cancel"}
                 </Button>
               )}
-              <Button
-                type="submit"
-                disabled={saveMutation.isPending}
-                className="bg-gradient-primary text-primary-foreground hover:opacity-90 shadow-elegant"
-              >
-                {saveMutation.isPending
-                  ? "Saving…"
-                  : editing
-                  ? "Save changes"
-                  : wizardStep < 3
-                  ? "Next"
-                  : "Create product"}
-              </Button>
+              {editing && editTab === "sizes" ? (
+                <Button
+                  type="button"
+                  disabled={savingSizes || sizeEdits.length === 0}
+                  onClick={saveAllSizes}
+                  className="bg-gradient-primary text-primary-foreground hover:opacity-90 shadow-elegant"
+                >
+                  {savingSizes ? "Saving…" : "Save sizes"}
+                </Button>
+              ) : editing && editTab === "modifiers" ? (
+                <Button
+                  type="button"
+                  disabled={savingOptions || optionEdits.length === 0}
+                  onClick={saveAllOptions}
+                  className="bg-gradient-primary text-primary-foreground hover:opacity-90 shadow-elegant"
+                >
+                  {savingOptions ? "Saving…" : "Save modifiers"}
+                </Button>
+              ) : (
+                <Button
+                  type="submit"
+                  disabled={saveMutation.isPending}
+                  className="bg-gradient-primary text-primary-foreground hover:opacity-90 shadow-elegant"
+                >
+                  {saveMutation.isPending
+                    ? "Saving…"
+                    : editing
+                    ? "Save changes"
+                    : wizardStep < 3
+                    ? "Next"
+                    : "Create product"}
+                </Button>
+              )}
             </DialogFooter>
           </form>
         </DialogContent>

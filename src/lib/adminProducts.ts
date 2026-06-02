@@ -309,6 +309,62 @@ export async function createModifierOption(
   await ensureOk(res);
 }
 
+export type SizeEditDraft = {
+  name: string;
+  price: string;
+  isDefault: boolean;
+};
+
+export type ModifierOptionEditDraft = {
+  name: string;
+  extraPrice: string;
+};
+
+export function validateSizeEdit(draft: SizeEditDraft): string | null {
+  if (!draft.name.trim()) return "Name is required";
+  const price = Number(draft.price);
+  if (!Number.isFinite(price) || price <= 0) return "Price must be greater than 0";
+  return null;
+}
+
+export function validateModifierOptionEdit(draft: ModifierOptionEditDraft): string | null {
+  if (!draft.name.trim()) return "Name is required";
+  const extraPrice = Number(draft.extraPrice);
+  if (!Number.isFinite(extraPrice) || extraPrice < 0) return "Extra price must be ≥ 0";
+  return null;
+}
+
+export function applyDefaultSize<T extends { isDefault: boolean }>(
+  sizes: T[],
+  index: number,
+): T[] {
+  return sizes.map((s, i) => ({ ...s, isDefault: i === index }));
+}
+
+export async function updateSize(
+  sizeId: number,
+  input: { name: string; price: number; isDefault: boolean },
+): Promise<void> {
+  const res = await fetch(apiUrl(`${PRODUCTS_PATH}/sizes/${sizeId}`), {
+    method: "PUT",
+    headers: { "Content-Type": "application/json", ...getAuthHeaders() },
+    body: JSON.stringify(input),
+  });
+  await ensureOk(res);
+}
+
+export async function updateModifierOption(
+  optionId: number,
+  input: { name: string; extraPrice: number },
+): Promise<void> {
+  const res = await fetch(apiUrl(`${PRODUCTS_PATH}/modifier-options/${optionId}`), {
+    method: "PUT",
+    headers: { "Content-Type": "application/json", ...getAuthHeaders() },
+    body: JSON.stringify(input),
+  });
+  await ensureOk(res);
+}
+
 export async function deleteProduct(id: number): Promise<void> {
   const res = await fetch(apiUrl(`${PRODUCTS_PATH}/${id}`), {
     method: "DELETE",
