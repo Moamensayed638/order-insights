@@ -1,13 +1,18 @@
+import { Plus, Trash2 } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Field } from "./Field";
 import type { OptionGroupEdit, RowError } from "../../types/types";
 
 export function ModifierEditList({
-  optionEdits, setOptionEdits, rowError,
+  optionEdits, setOptionEdits, rowError, onDeleteOption, deletingOptionId, onAddOption,
 }: {
   optionEdits: OptionGroupEdit[];
   setOptionEdits: React.Dispatch<React.SetStateAction<OptionGroupEdit[]>>;
   rowError: RowError;
+  onDeleteOption: (optionId: number) => void;
+  deletingOptionId: number | null;
+  onAddOption: (groupId: number) => void;
 }) {
   return (
     <div className="space-y-3 rounded-md border border-border/60 bg-muted/10 p-3">
@@ -40,12 +45,33 @@ export function ModifierEditList({
                       className="w-28"
                     />
                   </Field>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    disabled={deletingOptionId === o.id}
+                    onClick={() => onDeleteOption(o.id)}
+                    aria-label={`Delete ${o.name || "option"}`}
+                    className="mb-0.5 h-9 w-9 text-muted-foreground hover:text-destructive"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
                 </div>
                 {rowError?.id === o.id && (
                   <p className="text-[11px] text-destructive font-body">{rowError.msg}</p>
                 )}
               </div>
             ))}
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => onAddOption(g.groupId)}
+              className="h-7 gap-1 border-border/60 text-xs"
+            >
+              <Plus className="h-3.5 w-3.5" />
+              Add option
+            </Button>
           </div>
         </div>
       ))}

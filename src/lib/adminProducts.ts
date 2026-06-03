@@ -365,6 +365,14 @@ export async function updateModifierOption(
   await ensureOk(res);
 }
 
+export async function deleteModifierOption(optionId: number): Promise<void> {
+  const res = await fetch(apiUrl(`${PRODUCTS_PATH}/modifier-options/${optionId}`), {
+    method: "DELETE",
+    headers: { ...getAuthHeaders() },
+  });
+  await ensureOk(res);
+}
+
 export async function deleteProduct(id: number): Promise<void> {
   const res = await fetch(apiUrl(`${PRODUCTS_PATH}/${id}`), {
     method: "DELETE",

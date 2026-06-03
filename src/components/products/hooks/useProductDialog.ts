@@ -1,11 +1,12 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import {
   applyDefaultSize, createModifierGroup, createModifierOption, createProduct,
-  createSize, formatDiscountTimestamp, resolveEditCategoryId, updateModifierOption,
-  updateProduct, updateSize, validateModifierGroups, validateModifierOptionEdit,
-  validateProductForm, validateSizeEdit, validateSizes,
+  createSize, deleteModifierOption, fetchProductById, formatDiscountTimestamp,
+  resolveEditCategoryId, updateModifierOption, updateProduct, updateSize,
+  validateModifierGroups, validateModifierOptionEdit, validateProductForm,
+  validateSizeEdit, validateSizes,
 } from "@/lib/adminProducts";
 import type { ModifierGroupDraft, SizeDraft } from "@/lib/adminProducts";
 import type { AdminProduct, Category, ProductFormInput } from "@/types/product";
@@ -36,6 +37,10 @@ export function useProductDialog(categories: Category[]) {
   const [optionRowError, setOptionRowError] = useState<RowError>(null);
   const [savingSizes, setSavingSizes] = useState(false);
   const [savingOptions, setSavingOptions] = useState(false);
+  const [deletingOptionId, setDeletingOptionId] = useState<number | null>(null);
+  // New, unsaved option rows get a temporary negative id until the server
+  // assigns a real one on save.
+  const tempIdRef = useRef(-1);
 
   function resetForm() {
     setForm(emptyForm);
@@ -159,34 +164,69 @@ export function useProductDialog(categories: Category[]) {
     }
   }
 
+  function addOption(groupId: number) {
+    setOptionRowError(null);
+    setOptionEdits((groups) => groups.map((g) =>
+      g.groupId === groupId
+        ? { ...g, options: [...g.options, { id: tempIdRef.current--, name: "", extraPrice: "0" }] }
+        : g,
+    ));
+  }
+
   async function saveAllOptions() {
     setOptionRowError(null);
-    const rows = optionEdits.flatMap((g) => g.options);
-    for (const row of rows) {
+    for (const row of optionEdits.flatMap((g) => g.options)) {
       const err = validateModifierOptionEdit(row);
       if (err) return setOptionRowError({ id: row.id, msg: err });
     }
     setSavingOptions(true);
     try {
-      await Promise.all(rows.map((o) =>
-        updateModifierOption(o.id, { name: o.name.trim(), extraPrice: Number(o.extraPrice) }),
-      ));
-      setEditing((prev) => prev && {
-        ...prev,
-        modifierGroups: prev.modifierGroups.map((g) => ({
-          ...g,
-          options: g.options.map((o) => {
-            const edited = rows.find((e) => e.id === o.id);
-            return edited ? { ...o, name: edited.name.trim(), extraPrice: Number(edited.extraPrice) } : o;
-          }),
-        })),
-      });
+      await Promise.all(optionEdits.flatMap((g) => g.options.map((o) =>
+        o.id < 0
+          ? createModifierOption(g.groupId, { name: o.name.trim(), extraPrice: Number(o.extraPrice) })
+          : updateModifierOption(o.id, { name: o.name.trim(), extraPrice: Number(o.extraPrice) }),
+      )));
+      // Some rows were newly created and lack real ids — reseed from the server.
+      if (editing) {
+        const fresh = await fetchProductById(editing.id);
+        setEditing(fresh);
+        seedEdits(fresh);
+      }
       toast.success("Modifiers saved");
       queryClient.invalidateQueries({ queryKey: ["admin-products"] });
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Failed to save modifiers");
     } finally {
       setSavingOptions(false);
+    }
+  }
+
+  async function deleteOption(optionId: number) {
+    setOptionRowError(null);
+    // Unsaved rows (temp negative id) only exist locally — just drop them.
+    if (optionId < 0) {
+      setOptionEdits((groups) =>
+        groups.map((g) => ({ ...g, options: g.options.filter((o) => o.id !== optionId) })));
+      return;
+    }
+    setDeletingOptionId(optionId);
+    try {
+      await deleteModifierOption(optionId);
+      setOptionEdits((groups) =>
+        groups.map((g) => ({ ...g, options: g.options.filter((o) => o.id !== optionId) })));
+      setEditing((prev) => prev && {
+        ...prev,
+        modifierGroups: prev.modifierGroups.map((g) => ({
+          ...g,
+          options: g.options.filter((o) => o.id !== optionId),
+        })),
+      });
+      toast.success("Modifier option deleted");
+      queryClient.invalidateQueries({ queryKey: ["admin-products"] });
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Failed to delete option");
+    } finally {
+      setDeletingOptionId(null);
     }
   }
 
@@ -264,10 +304,10 @@ export function useProductDialog(categories: Category[]) {
     sizeEdits, setSizeEdits,
     optionEdits, setOptionEdits,
     sizeRowError, optionRowError,
-    savingSizes, savingOptions,
+    savingSizes, savingOptions, deletingOptionId,
     saveMutation,
     openCreate, openEdit, closeDialog,
-    selectDefaultSize, saveAllSizes, saveAllOptions,
+    selectDefaultSize, saveAllSizes, saveAllOptions, deleteOption, addOption,
     handleImageChange, handleSubmit,
   };
 }
