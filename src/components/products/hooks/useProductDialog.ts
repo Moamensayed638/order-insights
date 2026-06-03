@@ -217,17 +217,22 @@ export function useProductDialog(categories: Category[]) {
         { isEditing: Boolean(editing), hasImage: Boolean(form.image) },
       );
       if (err) return setFormError(err);
+      // When editing, sizes/modifiers are managed via their own tabs, not the
+      // create wizard. Skip the wizard size/modifier validation and submit the
+      // product details directly.
       if (!editing) return setWizardStep(2);
     }
 
-    if (wizardStep === 2) {
-      const err = validateSizes(sizes);
-      if (err) return setFormError(err);
-      return setWizardStep(3);
-    }
+    if (!editing) {
+      if (wizardStep === 2) {
+        const err = validateSizes(sizes);
+        if (err) return setFormError(err);
+        return setWizardStep(3);
+      }
 
-    const err3 = validateModifierGroups(modifierGroups);
-    if (err3) return setFormError(err3);
+      const err3 = validateModifierGroups(modifierGroups);
+      if (err3) return setFormError(err3);
+    }
 
     const discountPercentage =
       form.discountPercentage.trim() === "" ? null : Number(form.discountPercentage);
