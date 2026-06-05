@@ -25,16 +25,16 @@ function escapeHtml(value: unknown): string {
 }
 
 export function buildReceiptHtml(order: AdminOrder) {
-  const rows = order.orderItems
+  const items = order.orderItems
     .map(
       (item) => `
-        <tr>
-          <td>${escapeHtml(item.productName)}</td>
-          <td class="right">${item.quantity}</td>
-          <td class="right">${escapeHtml(fmt(item.unitPrice))}</td>
-          <td class="right">${escapeHtml(fmt(item.discountAmount))}</td>
-          <td class="right">${escapeHtml(fmt(item.totalPrice))}</td>
-        </tr>
+        <div class="item">
+          <div class="item-name">${escapeHtml(item.productName)}</div>
+          <div class="item-line">Qty: ${item.quantity}</div>
+          <div class="item-line">Unit: ${escapeHtml(fmt(item.unitPrice))}</div>
+          <div class="item-line">Discount: ${escapeHtml(fmt(item.discountAmount))}</div>
+          <div class="item-line">Total: ${escapeHtml(fmt(item.totalPrice))}</div>
+        </div>
       `,
     )
     .join("");
@@ -46,15 +46,19 @@ export function buildReceiptHtml(order: AdminOrder) {
       <head>
         <title>Order Receipt #${order.id}</title>
         <style>
-          body { font-family: Arial, sans-serif; padding: 24px; color: #111; }
-          h1 { margin: 0 0 8px; font-size: 22px; }
-          .meta { margin-bottom: 18px; font-size: 14px; line-height: 1.6; }
-          table { width: 100%; border-collapse: collapse; margin-top: 12px; }
-          th, td { border-bottom: 1px solid #ddd; padding: 8px 6px; text-align: left; font-size: 13px; }
-          .right { text-align: right; }
-          .actions { display: flex; gap: 10px; margin: 18px 0; }
-          .actions button { border: 1px solid #ccc; background: #f8f8f8; padding: 8px 14px; border-radius: 8px; cursor: pointer; }
-          .summary { margin-top: 18px; display: grid; gap: 6px; font-size: 14px; }
+          @page { size: 80mm auto; margin: 0; }
+          * { box-sizing: border-box; }
+          body { font-family: Arial, sans-serif; width: 72mm; padding: 3mm; margin: 0; color: #111; font-size: 12px; }
+          h1 { margin: 0 0 8px; font-size: 15px; text-align: center; }
+          .meta { margin-bottom: 8px; line-height: 1.5; word-break: break-word; }
+          .divider { border-top: 1px solid #000; margin: 8px 0; }
+          .items { }
+          .item { padding: 4px 0; }
+          .item + .item { border-top: 1px dashed #999; }
+          .item-name { font-weight: bold; word-break: break-word; }
+          .item-line { padding-left: 4px; }
+          .empty { text-align: center; padding: 8px 0; }
+          .summary { margin-top: 8px; display: grid; gap: 4px; }
           .summary div { display: flex; justify-content: space-between; }
         </style>
       </head>
@@ -67,24 +71,11 @@ export function buildReceiptHtml(order: AdminOrder) {
           <div><strong>Type:</strong> ${escapeHtml(orderTypeLabel)}</div>
           <div><strong>Address:</strong> ${escapeHtml(order.shippingAddress ?? "—")}</div>
         </div>
-        <div class="actions">
-          <button type="button" onclick="window.print()">Print</button>
-          <button type="button" onclick="window.close()">Cancel</button>
+        <div class="divider"></div>
+        <div class="items">
+          ${items || `<div class="empty">No items</div>`}
         </div>
-        <table>
-          <thead>
-            <tr>
-              <th>Item</th>
-              <th class="right">Qty</th>
-              <th class="right">Unit</th>
-              <th class="right">Discount</th>
-              <th class="right">Total</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${rows || `<tr><td colspan="5">No items</td></tr>`}
-          </tbody>
-        </table>
+        <div class="divider"></div>
         <div class="summary">
           <div><span>Subtotal</span><span>${escapeHtml(fmt(order.subTotal))}</span></div>
           <div><span>Discount</span><span>- ${escapeHtml(fmt(order.discountAmount))}</span></div>

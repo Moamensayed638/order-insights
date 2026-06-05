@@ -43,6 +43,29 @@ const fmtDate = (s: string) =>
 type SortKey = "id" | "name" | "total" | "items" | "date";
 type SortDir = "asc" | "desc";
 
+const SAMPLE_RECEIPT_ORDER: AdminOrder = {
+  id: 9999,
+  userId: "sample",
+  user: { fullName: "Sample Customer", phoneNumber: "01000000000", email: "sample@biscofa.test", id: "sample" },
+  subTotal: 175,
+  discountAmount: 15,
+  totalAmount: 180,
+  pointsEarned: 5,
+  pointsRedeemed: 0,
+  createdAt: new Date().toISOString(),
+  orderItems: [
+    { id: 1, orderId: 9999, productId: 1, productName: "Chocolate Croissant", quantity: 2, unitPrice: 45, discountAmount: 10, totalPrice: 80 },
+    { id: 2, orderId: 9999, productId: 2, productName: "Iced Latte", quantity: 1, unitPrice: 85, discountAmount: 0, totalPrice: 85 },
+  ],
+  orderStatus: 0,
+  paymentStatus: 0,
+  paymentMethod: 1,
+  shippingAddress: "12 Test Street, Cairo",
+  orderType: 2,
+  deliveryFee: 30,
+  isRewardOrder: false,
+};
+
 const Index = () => {
   const queryClient = useQueryClient();
   const { data, isLoading, isError, refetch, isFetching } = useQuery({
@@ -142,6 +165,16 @@ const Index = () => {
           <p className="text-sm text-muted-foreground font-body">
             Monitor every order in real time across pickup, delivery and dine‑in.
           </p>
+          {import.meta.env.DEV && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setReceiptOrder(SAMPLE_RECEIPT_ORDER)}
+              className="mt-2 border-dashed border-border/60 text-xs font-mono"
+            >
+              Test print (dev)
+            </Button>
+          )}
         </div>
 
         {/* ── Stat cards ── */}
@@ -472,7 +505,7 @@ const Index = () => {
 
       {/* ── Receipt dialog ── */}
       <Dialog open={Boolean(receiptOrder)} onOpenChange={(open) => !open && setReceiptOrder(null)}>
-        <DialogContent className="max-w-5xl bg-card border-border/60">
+        <DialogContent className="max-w-[360px] bg-card border-border/60">
           <DialogHeader>
             <DialogTitle className="font-display text-xl">Receipt Preview</DialogTitle>
             <DialogDescription className="text-sm text-muted-foreground">
