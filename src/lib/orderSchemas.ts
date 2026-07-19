@@ -12,14 +12,25 @@ export const orderItemSchema = z.object({
   id: z.number(),
   orderId: z.number(),
   productId: z.number(),
-  productName: z.string(),
+  productName: z.string().optional(),
+  productNameAr: z.string().optional(),
+  productNameEn: z.string().optional(),
   productSizeId: z.number().optional(),
   quantity: z.number(),
   unitPrice: z.number(),
   discountAmount: z.number(),
   totalPrice: z.number(),
   modifiers: z.array(z.unknown()).optional(),
-});
+}).refine(
+  (item) => [item.productNameEn, item.productNameAr, item.productName]
+    .some((name) => Boolean(name?.trim())),
+  { message: "A product name is required", path: ["productName"] },
+).transform(({ productNameEn, productNameAr, productName, ...item }) => ({
+  ...item,
+  productName: [productNameEn, productNameAr, productName]
+    .find((name) => Boolean(name?.trim()))
+    ?.trim() ?? "",
+}));
 
 export const adminOrderSchema = z.object({
   id: z.number(),

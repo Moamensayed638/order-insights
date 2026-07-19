@@ -68,7 +68,7 @@ const SAMPLE_RECEIPT_ORDER: AdminOrder = {
 
 const Index = () => {
   const queryClient = useQueryClient();
-  const { data, isLoading, isError, refetch, isFetching } = useQuery({
+  const { data, error, isLoading, isError, refetch, isFetching } = useQuery({
     queryKey: ["admin-orders"],
     queryFn: fetchOrders,
   });
@@ -261,11 +261,7 @@ const Index = () => {
               <div>
                 <h3 className="font-display text-lg font-semibold text-foreground">Could not load orders</h3>
                 <p className="mt-1 max-w-md text-sm text-muted-foreground">
-                  The API at{" "}
-                  <code className="rounded bg-muted px-1.5 py-0.5 text-xs font-mono">
-                    {import.meta.env.VITE_API_URL || "VITE_API_URL"}
-                  </code>{" "}
-                  may be unreachable or blocked by CORS / mixed content.
+                  {error instanceof Error ? error.message : "An unexpected error occurred while loading orders."}
                 </p>
               </div>
               <Button variant="outline" size="sm" onClick={() => refetch()} className="border-destructive/30 text-destructive hover:bg-destructive/10">
