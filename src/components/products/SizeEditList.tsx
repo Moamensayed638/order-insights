@@ -17,11 +17,19 @@ export function SizeEditList({
       )}
       {sizeEdits.map((s, i) => (
         <div key={s.id} className="space-y-1">
-          <div className="flex items-end gap-2">
-            <Field label="Name" required>
+          <div className="flex flex-wrap items-end gap-2">
+            <Field label="Name (EN)" required>
               <Input
-                value={s.name}
-                onChange={(e) => setSizeEdits(sizeEdits.map((x, j) => j === i ? { ...x, name: e.target.value } : x))}
+                value={s.nameEn}
+                onChange={(e) => setSizeEdits(sizeEdits.map((x, j) => j === i ? { ...x, nameEn: e.target.value } : x))}
+                className="w-32"
+              />
+            </Field>
+            <Field label="Name (AR)" required>
+              <Input
+                dir="rtl"
+                value={s.nameAr}
+                onChange={(e) => setSizeEdits(sizeEdits.map((x, j) => j === i ? { ...x, nameAr: e.target.value } : x))}
                 className="w-32"
               />
             </Field>

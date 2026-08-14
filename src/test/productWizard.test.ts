@@ -6,10 +6,11 @@ import {
   type ModifierGroupDraft,
 } from "@/lib/adminProducts";
 
-const validSize: SizeDraft = { name: "Medium", price: "50", isDefault: true };
-const validOption = { name: "Sugar", extraPrice: "5" };
+const validSize: SizeDraft = { nameAr: "وسط", nameEn: "Medium", price: "50", isDefault: true };
+const validOption = { nameAr: "سكر", nameEn: "Sugar", extraPrice: "5" };
 const validGroup: ModifierGroupDraft = {
-  name: "Extras",
+  nameAr: "إضافات",
+  nameEn: "Extras",
   isRequired: false,
   maxSelections: "1",
   options: [validOption],
@@ -22,8 +23,8 @@ describe("validateSizes", () => {
 
   it("returns null for multiple valid sizes with one default", () => {
     const sizes: SizeDraft[] = [
-      { name: "Small", price: "40", isDefault: false },
-      { name: "Large", price: "60", isDefault: true },
+      { nameAr: "صغير", nameEn: "Small", price: "40", isDefault: false },
+      { nameAr: "كبير", nameEn: "Large", price: "60", isDefault: true },
     ];
     expect(validateSizes(sizes)).toBeNull();
   });
@@ -32,9 +33,12 @@ describe("validateSizes", () => {
     expect(validateSizes([])).toBe("Add at least one size");
   });
 
-  it("rejects a size with an empty name", () => {
-    expect(validateSizes([{ ...validSize, name: "  " }])).toBe(
-      "Size #1: name is required",
+  it("rejects a size with an empty name in either language", () => {
+    expect(validateSizes([{ ...validSize, nameEn: "  " }])).toBe(
+      "Size #1: English name is required",
+    );
+    expect(validateSizes([{ ...validSize, nameAr: "  " }])).toBe(
+      "Size #1: Arabic name is required",
     );
   });
 
@@ -58,16 +62,16 @@ describe("validateSizes", () => {
 
   it("requires exactly one default size", () => {
     const sizes: SizeDraft[] = [
-      { name: "Small", price: "40", isDefault: false },
-      { name: "Large", price: "60", isDefault: false },
+      { nameAr: "صغير", nameEn: "Small", price: "40", isDefault: false },
+      { nameAr: "كبير", nameEn: "Large", price: "60", isDefault: false },
     ];
     expect(validateSizes(sizes)).toBe("Mark exactly one size as default");
   });
 
   it("rejects multiple default sizes", () => {
     const sizes: SizeDraft[] = [
-      { name: "Small", price: "40", isDefault: true },
-      { name: "Large", price: "60", isDefault: true },
+      { nameAr: "صغير", nameEn: "Small", price: "40", isDefault: true },
+      { nameAr: "كبير", nameEn: "Large", price: "60", isDefault: true },
     ];
     expect(validateSizes(sizes)).toBe("Mark exactly one size as default");
   });
@@ -82,10 +86,13 @@ describe("validateModifierGroups", () => {
     expect(validateModifierGroups([])).toBe("Add at least one modifier group");
   });
 
-  it("rejects a group with an empty name", () => {
+  it("rejects a group with an empty name in either language", () => {
     expect(
-      validateModifierGroups([{ ...validGroup, name: "  " }]),
-    ).toBe("Group #1: name is required");
+      validateModifierGroups([{ ...validGroup, nameEn: "  " }]),
+    ).toBe("Group #1: English name is required");
+    expect(
+      validateModifierGroups([{ ...validGroup, nameAr: "  " }]),
+    ).toBe("Group #1: Arabic name is required");
   });
 
   it("rejects a group with maxSelections of 0", () => {
@@ -106,18 +113,23 @@ describe("validateModifierGroups", () => {
     ).toBe("Group #1: add at least one option");
   });
 
-  it("rejects an option with an empty name", () => {
+  it("rejects an option with an empty name in either language", () => {
     expect(
       validateModifierGroups([
-        { ...validGroup, options: [{ name: "  ", extraPrice: "5" }] },
+        { ...validGroup, options: [{ ...validOption, nameEn: "  " }] },
       ]),
-    ).toBe("Group #1, option #1: name is required");
+    ).toBe("Group #1, option #1: English name is required");
+    expect(
+      validateModifierGroups([
+        { ...validGroup, options: [{ ...validOption, nameAr: "  " }] },
+      ]),
+    ).toBe("Group #1, option #1: Arabic name is required");
   });
 
   it("rejects an option with a negative extraPrice", () => {
     expect(
       validateModifierGroups([
-        { ...validGroup, options: [{ name: "Sugar", extraPrice: "-1" }] },
+        { ...validGroup, options: [{ ...validOption, extraPrice: "-1" }] },
       ]),
     ).toBe("Group #1, option #1: extra price must be ≥ 0");
   });
@@ -125,7 +137,7 @@ describe("validateModifierGroups", () => {
   it("allows an option with extraPrice of 0", () => {
     expect(
       validateModifierGroups([
-        { ...validGroup, options: [{ name: "None", extraPrice: "0" }] },
+        { ...validGroup, options: [{ ...validOption, extraPrice: "0" }] },
       ]),
     ).toBeNull();
   });

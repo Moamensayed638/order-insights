@@ -20,9 +20,19 @@ export function DetailsForm({
   return (
     <>
       <div className="grid gap-4 sm:grid-cols-2">
-        <Field label="Name" required>
-          <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
+        <Field label="Name (EN)" required>
+          <Input value={form.nameEn} onChange={(e) => setForm({ ...form, nameEn: e.target.value })} />
         </Field>
+        <Field label="Name (AR)" required>
+          <Input
+            dir="rtl"
+            value={form.nameAr}
+            onChange={(e) => setForm({ ...form, nameAr: e.target.value })}
+          />
+        </Field>
+      </div>
+
+      <div className="grid gap-4 sm:grid-cols-2">
         <Field label="Category" required>
           <Select value={form.categoryId} onValueChange={(v) => setForm({ ...form, categoryId: v })}>
             <SelectTrigger>
@@ -37,13 +47,23 @@ export function DetailsForm({
         </Field>
       </div>
 
-      <Field label="Description" required>
-        <Textarea
-          value={form.description}
-          onChange={(e) => setForm({ ...form, description: e.target.value })}
-          rows={3}
-        />
-      </Field>
+      <div className="grid gap-4 sm:grid-cols-2">
+        <Field label="Description (EN)" required>
+          <Textarea
+            value={form.descriptionEn}
+            onChange={(e) => setForm({ ...form, descriptionEn: e.target.value })}
+            rows={3}
+          />
+        </Field>
+        <Field label="Description (AR)" required>
+          <Textarea
+            dir="rtl"
+            value={form.descriptionAr}
+            onChange={(e) => setForm({ ...form, descriptionAr: e.target.value })}
+            rows={3}
+          />
+        </Field>
+      </div>
 
       <div className="grid gap-4 sm:grid-cols-3">
         <Field label="Price (EGP)" required>

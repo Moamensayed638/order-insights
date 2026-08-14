@@ -16,12 +16,21 @@ export function WizardSizes({
         Add at least one size. Mark one as the default.
       </p>
       {sizes.map((s, i) => (
-        <div key={i} className="flex items-end gap-2 rounded-md border border-border/60 bg-muted/20 p-3">
-          <Field label="Name" required>
+        <div key={i} className="flex flex-wrap items-end gap-2 rounded-md border border-border/60 bg-muted/20 p-3">
+          <Field label="Name (EN)" required>
             <Input
-              value={s.name}
-              onChange={(e) => setSizes(sizes.map((x, j) => j === i ? { ...x, name: e.target.value } : x))}
+              value={s.nameEn}
+              onChange={(e) => setSizes(sizes.map((x, j) => j === i ? { ...x, nameEn: e.target.value } : x))}
               placeholder="e.g. Medium"
+              className="w-32"
+            />
+          </Field>
+          <Field label="Name (AR)" required>
+            <Input
+              dir="rtl"
+              value={s.nameAr}
+              onChange={(e) => setSizes(sizes.map((x, j) => j === i ? { ...x, nameAr: e.target.value } : x))}
+              placeholder="مثال: وسط"
               className="w-32"
             />
           </Field>
@@ -60,7 +69,7 @@ export function WizardSizes({
       ))}
       <Button
         type="button" variant="outline" size="sm"
-        onClick={() => setSizes([...sizes, { name: "", price: "", isDefault: false }])}
+        onClick={() => setSizes([...sizes, { nameAr: "", nameEn: "", price: "", isDefault: false }])}
         className="gap-1.5 border-border/60 text-xs"
       >
         <Plus className="h-3.5 w-3.5" /> Add size

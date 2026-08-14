@@ -11,8 +11,10 @@ import {
 import type { AdminProduct, Category } from "@/types/product";
 
 const validDraft: ProductFormDraft = {
-  name: "Mocha",
-  description: "A rich mocha drink",
+  nameAr: "موكا",
+  nameEn: "Mocha",
+  descriptionAr: "مشروب موكا غني",
+  descriptionEn: "A rich mocha drink",
   price: "100",
   categoryId: "12",
   calories: "10",
@@ -53,20 +55,31 @@ describe("validateProductForm", () => {
     expect(validateProductForm(validDraft, { isEditing: true, hasImage: false })).toBeNull();
   });
 
-  it("rejects an empty name", () => {
-    const err = validateProductForm({ ...validDraft, name: "  " }, { isEditing: true, hasImage: false });
-    expect(err).toBe("Name is required");
+  it("rejects an empty name in either language", () => {
+    expect(
+      validateProductForm({ ...validDraft, nameEn: "  " }, { isEditing: true, hasImage: false }),
+    ).toBe("English name is required");
+    expect(
+      validateProductForm({ ...validDraft, nameAr: "  " }, { isEditing: true, hasImage: false }),
+    ).toBe("Arabic name is required");
   });
 
-  it("rejects an empty description", () => {
+  it("rejects an empty description in either language", () => {
     expect(
-      validateProductForm({ ...validDraft, description: "  " }, { isEditing: true, hasImage: false }),
-    ).toBe("Description is required");
+      validateProductForm({ ...validDraft, descriptionEn: "  " }, { isEditing: true, hasImage: false }),
+    ).toBe("English description is required");
+    expect(
+      validateProductForm({ ...validDraft, descriptionAr: "  " }, { isEditing: true, hasImage: false }),
+    ).toBe("Arabic description is required");
   });
 
   it("rejects a one-character name", () => {
-    const err = validateProductForm({ ...validDraft, name: "a" }, { isEditing: true, hasImage: false });
-    expect(err).toBe("Name must be at least 2 characters");
+    expect(
+      validateProductForm({ ...validDraft, nameEn: "a" }, { isEditing: true, hasImage: false }),
+    ).toBe("English name must be at least 2 characters");
+    expect(
+      validateProductForm({ ...validDraft, nameAr: "a" }, { isEditing: true, hasImage: false }),
+    ).toBe("Arabic name must be at least 2 characters");
   });
 
   it("rejects a zero or negative price", () => {
@@ -141,8 +154,10 @@ describe("buildProductFormData", () => {
 
   it("emits the exact field names the API expects (case-sensitive)", () => {
     const form = buildProductFormData({
-      name: "Mocha",
-      description: "rich",
+      nameAr: "موكا",
+      nameEn: "Mocha",
+      descriptionAr: "غني",
+      descriptionEn: "rich",
       price: 100,
       categoryId: 12,
       calories: 10,
@@ -150,8 +165,10 @@ describe("buildProductFormData", () => {
       image: null,
     });
     const obj = asObject(form);
-    expect(obj.Name).toBe("Mocha");
-    expect(obj.Description).toBe("rich");
+    expect(obj.NameEn).toBe("Mocha");
+    expect(obj.NameAr).toBe("موكا");
+    expect(obj.DescriptionEn).toBe("rich");
+    expect(obj.DescriptionAr).toBe("غني");
     expect(obj.Price).toBe("100");
     expect(obj.CategoryId).toBe("12");
     expect(obj.Calories).toBe("10");
@@ -160,11 +177,12 @@ describe("buildProductFormData", () => {
 
   it("does not emit lowercase aliases", () => {
     const form = buildProductFormData({
-      name: "x", description: "", price: 1, categoryId: 1,
+      nameAr: "س", nameEn: "x", descriptionAr: "", descriptionEn: "", price: 1, categoryId: 1,
       calories: 0, pointsReward: 0, image: null,
     });
     const obj = asObject(form);
-    expect(obj.name).toBeUndefined();
+    expect(obj.nameEn).toBeUndefined();
+    expect(obj.Name).toBeUndefined();
     expect(obj.price).toBeUndefined();
     expect(obj.categoryId).toBeUndefined();
   });
@@ -172,7 +190,7 @@ describe("buildProductFormData", () => {
   it("includes the image file when provided", () => {
     const file = new File(["bytes"], "photo.png", { type: "image/png" });
     const form = buildProductFormData({
-      name: "x", description: "", price: 1, categoryId: 1,
+      nameAr: "س", nameEn: "x", descriptionAr: "", descriptionEn: "", price: 1, categoryId: 1,
       calories: 0, pointsReward: 0, image: file,
     });
     const value = form.get("Image");
@@ -182,7 +200,7 @@ describe("buildProductFormData", () => {
 
   it("omits Image when no file is provided", () => {
     const form = buildProductFormData({
-      name: "x", description: "", price: 1, categoryId: 1,
+      nameAr: "س", nameEn: "x", descriptionAr: "", descriptionEn: "", price: 1, categoryId: 1,
       calories: 0, pointsReward: 0, image: null,
     });
     expect(form.get("Image")).toBeNull();
@@ -190,7 +208,7 @@ describe("buildProductFormData", () => {
 
   it("omits discount fields when null/empty", () => {
     const form = buildProductFormData({
-      name: "x", description: "", price: 1, categoryId: 1,
+      nameAr: "س", nameEn: "x", descriptionAr: "", descriptionEn: "", price: 1, categoryId: 1,
       calories: 0, pointsReward: 0, image: null,
       discountPercentage: null, discountStart: null, discountEnd: null,
     });
@@ -201,7 +219,7 @@ describe("buildProductFormData", () => {
 
   it("emits discount fields when provided", () => {
     const form = buildProductFormData({
-      name: "x", description: "", price: 1, categoryId: 1,
+      nameAr: "س", nameEn: "x", descriptionAr: "", descriptionEn: "", price: 1, categoryId: 1,
       calories: 0, pointsReward: 0, image: null,
       discountPercentage: 10,
       discountStart: "2026-04-28T21:00:00Z",
@@ -214,7 +232,7 @@ describe("buildProductFormData", () => {
 
   it("omits DiscountPercentage when value is NaN", () => {
     const form = buildProductFormData({
-      name: "x", description: "", price: 1, categoryId: 1,
+      nameAr: "س", nameEn: "x", descriptionAr: "", descriptionEn: "", price: 1, categoryId: 1,
       calories: 0, pointsReward: 0, image: null,
       discountPercentage: Number.NaN,
     });
@@ -245,13 +263,15 @@ describe("formatDiscountTimestamp", () => {
 });
 
 const sampleCategories: Category[] = [
-  { id: 12, name: "Turkish Coffee", description: "" },
-  { id: 13, name: "Espresso", description: "" },
+  { id: 12, nameAr: "قهوة تركي", nameEn: "Turkish Coffee", name: "Turkish Coffee", descriptionAr: "", descriptionEn: "" },
+  { id: 13, nameAr: "إسبريسو", nameEn: "Espresso", name: "Espresso", descriptionAr: "", descriptionEn: "" },
 ];
 
 function makeProduct(extra: Partial<AdminProduct> = {}): AdminProduct {
   return {
-    id: 1, name: "p", description: "", price: 1, calories: 0, pointsReward: 0,
+    id: 1, nameAr: "ب", nameEn: "p", name: "p",
+    descriptionAr: "", descriptionEn: "", description: "",
+    price: 1, calories: 0, pointsReward: 0,
     imageUrl: "", isAvailable: true, categoryName: "Turkish Coffee",
     sizes: [], modifierGroups: [], discountedPrice: 1,
     ...extra,
@@ -282,9 +302,9 @@ describe("resolveEditCategoryId", () => {
 
 describe("filterProductsBySearch", () => {
   const list: AdminProduct[] = [
-    makeProduct({ id: 27, name: "Mocha", description: "free mocha", categoryName: "Turkish Coffee" }),
-    makeProduct({ id: 28, name: "Rich morning toast", description: "fresh black coffee", categoryName: "Turkish Coffee" }),
-    makeProduct({ id: 40, name: "Espresso", description: "double shot", categoryName: "Espresso" }),
+    makeProduct({ id: 27, nameEn: "Mocha", nameAr: "موكا", descriptionEn: "free mocha", categoryName: "Turkish Coffee" }),
+    makeProduct({ id: 28, nameEn: "Rich morning toast", descriptionEn: "fresh black coffee", categoryName: "Turkish Coffee" }),
+    makeProduct({ id: 40, nameEn: "Espresso", descriptionEn: "double shot", categoryName: "Espresso" }),
   ];
 
   it("returns the full list when query is empty or whitespace", () => {
@@ -313,6 +333,10 @@ describe("filterProductsBySearch", () => {
 
   it("matches by description", () => {
     expect(filterProductsBySearch(list, "double shot").map((p) => p.id)).toEqual([40]);
+  });
+
+  it("matches by the Arabic name", () => {
+    expect(filterProductsBySearch(list, "موكا").map((p) => p.id)).toEqual([27]);
   });
 
   it("returns empty array when no products match", () => {

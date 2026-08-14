@@ -13,16 +13,17 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-const validSize: SizeEditDraft = { name: "Medium", price: "50", isDefault: true };
-const validOption: ModifierOptionEditDraft = { name: "Sugar", extraPrice: "5" };
+const validSize: SizeEditDraft = { nameAr: "وسط", nameEn: "Medium", price: "50", isDefault: true };
+const validOption: ModifierOptionEditDraft = { nameAr: "سكر", nameEn: "Sugar", extraPrice: "5" };
 
 describe("validateSizeEdit", () => {
   it("returns null for a valid size", () => {
     expect(validateSizeEdit(validSize)).toBeNull();
   });
 
-  it("rejects an empty name", () => {
-    expect(validateSizeEdit({ ...validSize, name: "  " })).toBe("Name is required");
+  it("rejects an empty name in either language", () => {
+    expect(validateSizeEdit({ ...validSize, nameEn: "  " })).toBe("English name is required");
+    expect(validateSizeEdit({ ...validSize, nameAr: "  " })).toBe("Arabic name is required");
   });
 
   it("rejects a price of 0", () => {
@@ -53,9 +54,12 @@ describe("validateModifierOptionEdit", () => {
     expect(validateModifierOptionEdit({ ...validOption, extraPrice: "0" })).toBeNull();
   });
 
-  it("rejects an empty name", () => {
-    expect(validateModifierOptionEdit({ ...validOption, name: "  " })).toBe(
-      "Name is required",
+  it("rejects an empty name in either language", () => {
+    expect(validateModifierOptionEdit({ ...validOption, nameEn: "  " })).toBe(
+      "English name is required",
+    );
+    expect(validateModifierOptionEdit({ ...validOption, nameAr: "  " })).toBe(
+      "Arabic name is required",
     );
   });
 
@@ -102,18 +106,20 @@ describe("applyDefaultSize", () => {
 });
 
 describe("updateSize", () => {
-  it("PUTs the size payload to the sizes/{id} endpoint as JSON", async () => {
+  it("PUTs the size payload to the product's sizes/{id} endpoint as JSON", async () => {
     const fetchMock = vi.fn().mockResolvedValue({ ok: true, json: async () => ({}) });
     vi.stubGlobal("fetch", fetchMock);
 
-    await updateSize(33, { name: "Large", price: 60, isDefault: true });
+    await updateSize(7, 33, { nameAr: "كبير", nameEn: "Large", price: 60, isDefault: true });
 
     expect(fetchMock).toHaveBeenCalledTimes(1);
     const [url, init] = fetchMock.mock.calls[0];
-    expect(url).toBe("https://biscofa.runasp.net/api/admin/products/sizes/33");
+    expect(url).toBe("https://biscofa.runasp.net/api/admin/products/7/sizes/33");
     expect(init.method).toBe("PUT");
     expect(init.headers["Content-Type"]).toBe("application/json");
-    expect(JSON.parse(init.body)).toEqual({ name: "Large", price: 60, isDefault: true });
+    expect(JSON.parse(init.body)).toEqual({
+      nameAr: "كبير", nameEn: "Large", price: 60, isDefault: true,
+    });
   });
 
   it("throws the API message when the response is not ok", async () => {
@@ -125,24 +131,26 @@ describe("updateSize", () => {
     vi.stubGlobal("fetch", fetchMock);
 
     await expect(
-      updateSize(33, { name: "x", price: 1, isDefault: false }),
+      updateSize(7, 33, { nameAr: "س", nameEn: "x", price: 1, isDefault: false }),
     ).rejects.toThrow("Bad size");
   });
 });
 
 describe("updateModifierOption", () => {
-  it("PUTs the option payload to the modifier-options/{id} endpoint as JSON", async () => {
+  it("PUTs the option payload to the group's options/{id} endpoint as JSON", async () => {
     const fetchMock = vi.fn().mockResolvedValue({ ok: true, json: async () => ({}) });
     vi.stubGlobal("fetch", fetchMock);
 
-    await updateModifierOption(33, { name: "Extra shot", extraPrice: 7 });
+    await updateModifierOption(9, 33, { nameAr: "جرعة إضافية", nameEn: "Extra shot", extraPrice: 7 });
 
     expect(fetchMock).toHaveBeenCalledTimes(1);
     const [url, init] = fetchMock.mock.calls[0];
-    expect(url).toBe("https://biscofa.runasp.net/api/admin/products/modifier-options/33");
+    expect(url).toBe("https://biscofa.runasp.net/api/admin/modifier-groups/9/options/33");
     expect(init.method).toBe("PUT");
     expect(init.headers["Content-Type"]).toBe("application/json");
-    expect(JSON.parse(init.body)).toEqual({ name: "Extra shot", extraPrice: 7 });
+    expect(JSON.parse(init.body)).toEqual({
+      nameAr: "جرعة إضافية", nameEn: "Extra shot", extraPrice: 7,
+    });
   });
 
   it("throws the API message when the response is not ok", async () => {
@@ -154,7 +162,7 @@ describe("updateModifierOption", () => {
     vi.stubGlobal("fetch", fetchMock);
 
     await expect(
-      updateModifierOption(33, { name: "x", extraPrice: 0 }),
+      updateModifierOption(9, 33, { nameAr: "س", nameEn: "x", extraPrice: 0 }),
     ).rejects.toThrow("Bad option");
   });
 });

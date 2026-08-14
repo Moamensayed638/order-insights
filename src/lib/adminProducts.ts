@@ -10,7 +10,14 @@ export function resolveEditCategoryId(
   categories: Category[],
 ): string {
   if (typeof product.categoryId === "number") return String(product.categoryId);
-  const match = categories.find((c) => c.name === product.categoryName);
+  // The product payload only carries the legacy single-language category name,
+  // so try it against either side of the bilingual category record.
+  const match = categories.find(
+    (c) =>
+      c.nameEn === product.categoryName ||
+      c.nameAr === product.categoryName ||
+      c.name === product.categoryName,
+  );
   if (!match) {
     if (categories.length > 0) {
       console.warn(
@@ -29,10 +36,14 @@ export function filterProductsBySearch(
   const q = query.trim().toLowerCase();
   if (!q) return products;
   return products.filter((p) =>
-    String(p.id).includes(q) ||
-    p.name.toLowerCase().includes(q) ||
-    p.categoryName.toLowerCase().includes(q) ||
-    (p.description ?? "").toLowerCase().includes(q),
+    [
+      String(p.id),
+      p.nameEn,
+      p.nameAr,
+      p.categoryName,
+      p.descriptionEn,
+      p.descriptionAr,
+    ].some((field) => (field ?? "").toLowerCase().includes(q)),
   );
 }
 
@@ -57,6 +68,8 @@ import {
 
 const PRODUCTS_PATH = "admin/products";
 const CATEGORIES_PATH = "admin/categories";
+// Modifier options hang off the group, not off the product.
+const MODIFIER_GROUPS_PATH = "admin/modifier-groups";
 
 const API_ORIGIN = (() => {
   try {
@@ -97,7 +110,7 @@ export async function fetchProducts(): Promise<AdminProduct[]> {
 }
 
 export async function fetchProductById(id: number): Promise<AdminProduct> {
-  const res = await fetch(apiUrl(`${PRODUCTS_PATH}/product/${id}`), {
+  const res = await fetch(apiUrl(`${PRODUCTS_PATH}/${id}`), {
     headers: { ...getAuthHeaders() },
   });
   await ensureOk(res);
@@ -133,8 +146,10 @@ export async function fetchCategories(): Promise<Category[]> {
 
 export function buildProductFormData(input: ProductFormInput): FormData {
   const form = new FormData();
-  form.append("Name", input.name);
-  form.append("Description", input.description);
+  form.append("NameAr", input.nameAr);
+  form.append("NameEn", input.nameEn);
+  form.append("DescriptionAr", input.descriptionAr);
+  form.append("DescriptionEn", input.descriptionEn);
   form.append("Price", String(input.price));
   form.append("CategoryId", String(input.categoryId));
   form.append("Calories", String(input.calories));
@@ -178,8 +193,10 @@ export async function updateProduct(
 }
 
 export type ProductFormDraft = {
-  name: string;
-  description: string;
+  nameAr: string;
+  nameEn: string;
+  descriptionAr: string;
+  descriptionEn: string;
   price: string;
   categoryId: string;
   calories: string;
@@ -188,18 +205,21 @@ export type ProductFormDraft = {
 };
 
 export type SizeDraft = {
-  name: string;
+  nameAr: string;
+  nameEn: string;
   price: string;
   isDefault: boolean;
 };
 
 export type ModifierOptionDraft = {
-  name: string;
+  nameAr: string;
+  nameEn: string;
   extraPrice: string;
 };
 
 export type ModifierGroupDraft = {
-  name: string;
+  nameAr: string;
+  nameEn: string;
   isRequired: boolean;
   maxSelections: string;
   options: ModifierOptionDraft[];
@@ -210,7 +230,8 @@ export function validateSizes(sizes: SizeDraft[]): string | null {
   for (let i = 0; i < sizes.length; i++) {
     const s = sizes[i];
     const n = i + 1;
-    if (!s.name.trim()) return `Size #${n}: name is required`;
+    if (!s.nameEn.trim()) return `Size #${n}: English name is required`;
+    if (!s.nameAr.trim()) return `Size #${n}: Arabic name is required`;
     const price = Number(s.price);
     if (!Number.isFinite(price) || price <= 0) return `Size #${n}: price must be greater than 0`;
   }
@@ -224,14 +245,16 @@ export function validateModifierGroups(groups: ModifierGroupDraft[]): string | n
   for (let gi = 0; gi < groups.length; gi++) {
     const g = groups[gi];
     const gn = gi + 1;
-    if (!g.name.trim()) return `Group #${gn}: name is required`;
+    if (!g.nameEn.trim()) return `Group #${gn}: English name is required`;
+    if (!g.nameAr.trim()) return `Group #${gn}: Arabic name is required`;
     const max = Number(g.maxSelections);
     if (!Number.isFinite(max) || max < 1) return `Group #${gn}: max selections must be at least 1`;
     if (g.options.length === 0) return `Group #${gn}: add at least one option`;
     for (let oi = 0; oi < g.options.length; oi++) {
       const o = g.options[oi];
       const on = oi + 1;
-      if (!o.name.trim()) return `Group #${gn}, option #${on}: name is required`;
+      if (!o.nameEn.trim()) return `Group #${gn}, option #${on}: English name is required`;
+      if (!o.nameAr.trim()) return `Group #${gn}, option #${on}: Arabic name is required`;
       const ep = Number(o.extraPrice);
       if (!Number.isFinite(ep) || ep < 0) return `Group #${gn}, option #${on}: extra price must be ≥ 0`;
     }
@@ -243,9 +266,12 @@ export function validateProductForm(
   draft: ProductFormDraft,
   opts: { isEditing: boolean; hasImage: boolean },
 ): string | null {
-  if (!draft.name.trim()) return "Name is required";
-  if (draft.name.trim().length < 2) return "Name must be at least 2 characters";
-  if (!draft.description.trim()) return "Description is required";
+  if (!draft.nameEn.trim()) return "English name is required";
+  if (draft.nameEn.trim().length < 2) return "English name must be at least 2 characters";
+  if (!draft.nameAr.trim()) return "Arabic name is required";
+  if (draft.nameAr.trim().length < 2) return "Arabic name must be at least 2 characters";
+  if (!draft.descriptionEn.trim()) return "English description is required";
+  if (!draft.descriptionAr.trim()) return "Arabic description is required";
 
   const price = Number(draft.price);
   if (!Number.isFinite(price) || price <= 0) return "Price must be greater than 0";
@@ -273,7 +299,7 @@ export function validateProductForm(
 
 export async function createSize(
   productId: number,
-  input: { name: string; price: number; isDefault: boolean },
+  input: { nameAr: string; nameEn: string; price: number; isDefault: boolean },
 ): Promise<void> {
   const res = await fetch(apiUrl(`${PRODUCTS_PATH}/${productId}/sizes`), {
     method: "POST",
@@ -285,7 +311,7 @@ export async function createSize(
 
 export async function createModifierGroup(
   productId: number,
-  input: { name: string; isRequired: boolean; maxSelections: number },
+  input: { nameAr: string; nameEn: string; isRequired: boolean; maxSelections: number },
 ): Promise<{ id: number }> {
   const res = await fetch(apiUrl(`${PRODUCTS_PATH}/${productId}/modifier-groups`), {
     method: "POST",
@@ -299,9 +325,9 @@ export async function createModifierGroup(
 
 export async function createModifierOption(
   groupId: number,
-  input: { name: string; extraPrice: number },
+  input: { nameAr: string; nameEn: string; extraPrice: number },
 ): Promise<void> {
-  const res = await fetch(apiUrl(`${PRODUCTS_PATH}/modifier-groups/${groupId}/options`), {
+  const res = await fetch(apiUrl(`${MODIFIER_GROUPS_PATH}/${groupId}/options`), {
     method: "POST",
     headers: { "Content-Type": "application/json", ...getAuthHeaders() },
     body: JSON.stringify(input),
@@ -310,25 +336,29 @@ export async function createModifierOption(
 }
 
 export type SizeEditDraft = {
-  name: string;
+  nameAr: string;
+  nameEn: string;
   price: string;
   isDefault: boolean;
 };
 
 export type ModifierOptionEditDraft = {
-  name: string;
+  nameAr: string;
+  nameEn: string;
   extraPrice: string;
 };
 
 export function validateSizeEdit(draft: SizeEditDraft): string | null {
-  if (!draft.name.trim()) return "Name is required";
+  if (!draft.nameEn.trim()) return "English name is required";
+  if (!draft.nameAr.trim()) return "Arabic name is required";
   const price = Number(draft.price);
   if (!Number.isFinite(price) || price <= 0) return "Price must be greater than 0";
   return null;
 }
 
 export function validateModifierOptionEdit(draft: ModifierOptionEditDraft): string | null {
-  if (!draft.name.trim()) return "Name is required";
+  if (!draft.nameEn.trim()) return "English name is required";
+  if (!draft.nameAr.trim()) return "Arabic name is required";
   const extraPrice = Number(draft.extraPrice);
   if (!Number.isFinite(extraPrice) || extraPrice < 0) return "Extra price must be ≥ 0";
   return null;
@@ -342,10 +372,11 @@ export function applyDefaultSize<T extends { isDefault: boolean }>(
 }
 
 export async function updateSize(
+  productId: number,
   sizeId: number,
-  input: { name: string; price: number; isDefault: boolean },
+  input: { nameAr: string; nameEn: string; price: number; isDefault: boolean },
 ): Promise<void> {
-  const res = await fetch(apiUrl(`${PRODUCTS_PATH}/sizes/${sizeId}`), {
+  const res = await fetch(apiUrl(`${PRODUCTS_PATH}/${productId}/sizes/${sizeId}`), {
     method: "PUT",
     headers: { "Content-Type": "application/json", ...getAuthHeaders() },
     body: JSON.stringify(input),
@@ -354,10 +385,11 @@ export async function updateSize(
 }
 
 export async function updateModifierOption(
+  groupId: number,
   optionId: number,
-  input: { name: string; extraPrice: number },
+  input: { nameAr: string; nameEn: string; extraPrice: number },
 ): Promise<void> {
-  const res = await fetch(apiUrl(`${PRODUCTS_PATH}/modifier-options/${optionId}`), {
+  const res = await fetch(apiUrl(`${MODIFIER_GROUPS_PATH}/${groupId}/options/${optionId}`), {
     method: "PUT",
     headers: { "Content-Type": "application/json", ...getAuthHeaders() },
     body: JSON.stringify(input),
@@ -365,8 +397,11 @@ export async function updateModifierOption(
   await ensureOk(res);
 }
 
-export async function deleteModifierOption(optionId: number): Promise<void> {
-  const res = await fetch(apiUrl(`${PRODUCTS_PATH}/modifier-options/${optionId}`), {
+export async function deleteModifierOption(
+  groupId: number,
+  optionId: number,
+): Promise<void> {
+  const res = await fetch(apiUrl(`${MODIFIER_GROUPS_PATH}/${groupId}/options/${optionId}`), {
     method: "DELETE",
     headers: { ...getAuthHeaders() },
   });

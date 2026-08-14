@@ -10,7 +10,7 @@ export function ModifierEditList({
   optionEdits: OptionGroupEdit[];
   setOptionEdits: React.Dispatch<React.SetStateAction<OptionGroupEdit[]>>;
   rowError: RowError;
-  onDeleteOption: (optionId: number) => void;
+  onDeleteOption: (groupId: number, optionId: number) => void;
   deletingOptionId: number | null;
   onAddOption: (groupId: number) => void;
 }) {
@@ -25,12 +25,22 @@ export function ModifierEditList({
           <div className="space-y-2 pl-2 border-l border-border/40">
             {g.options.map((o, oi) => (
               <div key={o.id} className="space-y-1">
-                <div className="flex items-end gap-2">
-                  <Field label="Name" required>
+                <div className="flex flex-wrap items-end gap-2">
+                  <Field label="Name (EN)" required>
                     <Input
-                      value={o.name}
+                      value={o.nameEn}
                       onChange={(e) => setOptionEdits(optionEdits.map((x, j) =>
-                        j === gi ? { ...x, options: x.options.map((op, k) => k === oi ? { ...op, name: e.target.value } : op) } : x,
+                        j === gi ? { ...x, options: x.options.map((op, k) => k === oi ? { ...op, nameEn: e.target.value } : op) } : x,
+                      ))}
+                      className="w-36"
+                    />
+                  </Field>
+                  <Field label="Name (AR)" required>
+                    <Input
+                      dir="rtl"
+                      value={o.nameAr}
+                      onChange={(e) => setOptionEdits(optionEdits.map((x, j) =>
+                        j === gi ? { ...x, options: x.options.map((op, k) => k === oi ? { ...op, nameAr: e.target.value } : op) } : x,
                       ))}
                       className="w-36"
                     />
@@ -50,8 +60,8 @@ export function ModifierEditList({
                     variant="ghost"
                     size="icon"
                     disabled={deletingOptionId === o.id}
-                    onClick={() => onDeleteOption(o.id)}
-                    aria-label={`Delete ${o.name || "option"}`}
+                    onClick={() => onDeleteOption(g.groupId, o.id)}
+                    aria-label={`Delete ${o.nameEn || o.nameAr || "option"}`}
                     className="mb-0.5 h-9 w-9 text-muted-foreground hover:text-destructive"
                   >
                     <Trash2 className="h-4 w-4" />

@@ -1,5 +1,8 @@
 export type ProductSize = {
   id: number;
+  nameAr: string;
+  nameEn: string;
+  /** Display name — English with Arabic fallback. Derived, never sent back. */
   name: string;
   price: number;
   isDefault: boolean;
@@ -7,12 +10,16 @@ export type ProductSize = {
 
 export type ModifierOption = {
   id: number;
+  nameAr: string;
+  nameEn: string;
   name: string;
   extraPrice: number;
 };
 
 export type ModifierGroup = {
   id: number;
+  nameAr: string;
+  nameEn: string;
   name: string;
   isRequired: boolean;
   maxSelections: number;
@@ -21,7 +28,11 @@ export type ModifierGroup = {
 
 export type AdminProduct = {
   id: number;
+  nameAr: string;
+  nameEn: string;
   name: string;
+  descriptionAr: string;
+  descriptionEn: string;
   description: string;
   price: number;
   calories: number;
@@ -48,13 +59,18 @@ export type TopSellingProduct = {
 
 export type Category = {
   id: number;
+  nameAr: string;
+  nameEn: string;
   name: string;
-  description: string;
+  descriptionAr: string;
+  descriptionEn: string;
 };
 
 export type ProductFormInput = {
-  name: string;
-  description: string;
+  nameAr: string;
+  nameEn: string;
+  descriptionAr: string;
+  descriptionEn: string;
   price: number;
   categoryId: number;
   calories: number;

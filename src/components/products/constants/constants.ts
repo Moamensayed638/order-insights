@@ -5,8 +5,10 @@ export const fmt = (n: number) => `${n.toFixed(2)} EGP`;
 export const MAX_IMAGE_BYTES = 2 * 1024 * 1024;
 
 export const emptyForm: FormState = {
-  name: "",
-  description: "",
+  nameAr: "",
+  nameEn: "",
+  descriptionAr: "",
+  descriptionEn: "",
   price: "",
   categoryId: "",
   calories: "0",
