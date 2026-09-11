@@ -59,6 +59,7 @@ export function formatDiscountTimestamp(
   return hasSeconds ? value : `${value}:00`;
 }
 import { apiUrl, getAuthHeaders } from "@/lib/auth";
+import { fetchWithAuth } from "@/lib/authFetch";
 import {
   adminProductSchema,
   adminProductsResponseSchema,
@@ -101,7 +102,7 @@ async function ensureOk(res: Response) {
 }
 
 export async function fetchProducts(): Promise<AdminProduct[]> {
-  const res = await fetch(apiUrl(PRODUCTS_PATH), { headers: { ...getAuthHeaders() } });
+  const res = await fetchWithAuth(apiUrl(PRODUCTS_PATH), { headers: { ...getAuthHeaders() } });
   await ensureOk(res);
   const payload = await parseJson(res);
   const parsed = adminProductsResponseSchema.safeParse(payload);
@@ -110,7 +111,7 @@ export async function fetchProducts(): Promise<AdminProduct[]> {
 }
 
 export async function fetchProductById(id: number): Promise<AdminProduct> {
-  const res = await fetch(apiUrl(`${PRODUCTS_PATH}/${id}`), {
+  const res = await fetchWithAuth(apiUrl(`${PRODUCTS_PATH}/${id}`), {
     headers: { ...getAuthHeaders() },
   });
   await ensureOk(res);
@@ -124,7 +125,7 @@ export async function fetchTopSelling(
   count = 10,
   days = 30,
 ): Promise<TopSellingProduct[]> {
-  const res = await fetch(
+  const res = await fetchWithAuth(
     apiUrl(`${PRODUCTS_PATH}/top-selling?count=${count}&days=${days}`),
     { headers: { ...getAuthHeaders() } },
   );
@@ -136,7 +137,7 @@ export async function fetchTopSelling(
 }
 
 export async function fetchCategories(): Promise<Category[]> {
-  const res = await fetch(apiUrl(CATEGORIES_PATH), { headers: { ...getAuthHeaders() } });
+  const res = await fetchWithAuth(apiUrl(CATEGORIES_PATH), { headers: { ...getAuthHeaders() } });
   await ensureOk(res);
   const payload = await parseJson(res);
   const parsed = categoriesResponseSchema.safeParse(payload);
@@ -164,7 +165,7 @@ export function buildProductFormData(input: ProductFormInput): FormData {
 }
 
 export async function createProduct(input: ProductFormInput): Promise<AdminProduct> {
-  const res = await fetch(apiUrl(PRODUCTS_PATH), {
+  const res = await fetchWithAuth(apiUrl(PRODUCTS_PATH), {
     method: "POST",
     headers: { ...getAuthHeaders() },
     body: buildProductFormData(input),
@@ -180,7 +181,7 @@ export async function updateProduct(
   id: number,
   input: ProductFormInput,
 ): Promise<AdminProduct> {
-  const res = await fetch(apiUrl(`${PRODUCTS_PATH}/${id}`), {
+  const res = await fetchWithAuth(apiUrl(`${PRODUCTS_PATH}/${id}`), {
     method: "PUT",
     headers: { ...getAuthHeaders() },
     body: buildProductFormData(input),
@@ -301,7 +302,7 @@ export async function createSize(
   productId: number,
   input: { nameAr: string; nameEn: string; price: number; isDefault: boolean },
 ): Promise<void> {
-  const res = await fetch(apiUrl(`${PRODUCTS_PATH}/${productId}/sizes`), {
+  const res = await fetchWithAuth(apiUrl(`${PRODUCTS_PATH}/${productId}/sizes`), {
     method: "POST",
     headers: { "Content-Type": "application/json", ...getAuthHeaders() },
     body: JSON.stringify(input),
@@ -313,7 +314,7 @@ export async function createModifierGroup(
   productId: number,
   input: { nameAr: string; nameEn: string; isRequired: boolean; maxSelections: number },
 ): Promise<{ id: number }> {
-  const res = await fetch(apiUrl(`${PRODUCTS_PATH}/${productId}/modifier-groups`), {
+  const res = await fetchWithAuth(apiUrl(`${PRODUCTS_PATH}/${productId}/modifier-groups`), {
     method: "POST",
     headers: { "Content-Type": "application/json", ...getAuthHeaders() },
     body: JSON.stringify(input),
@@ -327,7 +328,7 @@ export async function createModifierOption(
   groupId: number,
   input: { nameAr: string; nameEn: string; extraPrice: number },
 ): Promise<void> {
-  const res = await fetch(apiUrl(`${MODIFIER_GROUPS_PATH}/${groupId}/options`), {
+  const res = await fetchWithAuth(apiUrl(`${MODIFIER_GROUPS_PATH}/${groupId}/options`), {
     method: "POST",
     headers: { "Content-Type": "application/json", ...getAuthHeaders() },
     body: JSON.stringify(input),
@@ -401,7 +402,7 @@ export async function updateSize(
   sizeId: number,
   input: { nameAr: string; nameEn: string; price: number; isDefault: boolean },
 ): Promise<void> {
-  const res = await fetch(apiUrl(`${PRODUCTS_PATH}/${productId}/sizes/${sizeId}`), {
+  const res = await fetchWithAuth(apiUrl(`${PRODUCTS_PATH}/${productId}/sizes/${sizeId}`), {
     method: "PUT",
     headers: { "Content-Type": "application/json", ...getAuthHeaders() },
     body: JSON.stringify(input),
@@ -420,7 +421,7 @@ export async function updateModifierGroup(
   groupId: number,
   input: { maxSelections: number },
 ): Promise<void> {
-  const res = await fetch(
+  const res = await fetchWithAuth(
     apiUrl(`${PRODUCTS_PATH}/${productId}/modifier-groups/${groupId}`),
     {
       method: "PUT",
@@ -436,7 +437,7 @@ export async function updateModifierGroupNames(
   groupId: number,
   input: { nameAr: string; nameEn: string; isRequired: boolean },
 ): Promise<void> {
-  const res = await fetch(
+  const res = await fetchWithAuth(
     apiUrl(`${PRODUCTS_PATH}/${productId}/modifier-groups/${groupId}`),
     {
       method: "PUT",
@@ -452,7 +453,7 @@ export async function updateModifierOption(
   optionId: number,
   input: { nameAr: string; nameEn: string; extraPrice: number },
 ): Promise<void> {
-  const res = await fetch(apiUrl(`${MODIFIER_GROUPS_PATH}/${groupId}/options/${optionId}`), {
+  const res = await fetchWithAuth(apiUrl(`${MODIFIER_GROUPS_PATH}/${groupId}/options/${optionId}`), {
     method: "PUT",
     headers: { "Content-Type": "application/json", ...getAuthHeaders() },
     body: JSON.stringify(input),
@@ -464,7 +465,7 @@ export async function deleteModifierOption(
   groupId: number,
   optionId: number,
 ): Promise<void> {
-  const res = await fetch(apiUrl(`${MODIFIER_GROUPS_PATH}/${groupId}/options/${optionId}`), {
+  const res = await fetchWithAuth(apiUrl(`${MODIFIER_GROUPS_PATH}/${groupId}/options/${optionId}`), {
     method: "DELETE",
     headers: { ...getAuthHeaders() },
   });
@@ -475,7 +476,7 @@ export async function deleteModifierGroup(
   productId: number,
   groupId: number,
 ): Promise<void> {
-  const res = await fetch(
+  const res = await fetchWithAuth(
     apiUrl(`${PRODUCTS_PATH}/${productId}/modifier-groups/${groupId}`),
     {
       method: "DELETE",
@@ -486,7 +487,7 @@ export async function deleteModifierGroup(
 }
 
 export async function deleteProduct(id: number): Promise<void> {
-  const res = await fetch(apiUrl(`${PRODUCTS_PATH}/${id}`), {
+  const res = await fetchWithAuth(apiUrl(`${PRODUCTS_PATH}/${id}`), {
     method: "DELETE",
     headers: { ...getAuthHeaders() },
   });

@@ -1,11 +1,12 @@
 import type { AdminOrder } from "@/types/order";
 import { apiUrl, getAuthHeaders } from "@/lib/auth";
+import { fetchWithAuth } from "@/lib/authFetch";
 import { adminOrderSchema, adminOrdersResponseSchema } from "@/lib/orderSchemas";
 
 const ORDERS_PATH = "adminorders";
 
 export async function fetchOrders(): Promise<AdminOrder[]> {
-  const res = await fetch(apiUrl(ORDERS_PATH), { headers: { ...getAuthHeaders() } });
+  const res = await fetchWithAuth(apiUrl(ORDERS_PATH), { headers: { ...getAuthHeaders() } });
   if (!res.ok) {
     throw new Error(`Request failed: ${res.status}`);
   }
@@ -21,7 +22,7 @@ export async function fetchOrders(): Promise<AdminOrder[]> {
 }
 
 export async function updateOrderStatus(orderId: number, status: number): Promise<AdminOrder> {
-  const res = await fetch(apiUrl(`AdminOrders/${orderId}/status?status=${status}`), {
+  const res = await fetchWithAuth(apiUrl(`AdminOrders/${orderId}/status?status=${status}`), {
     method: "PUT",
     headers: { ...getAuthHeaders() },
   });
