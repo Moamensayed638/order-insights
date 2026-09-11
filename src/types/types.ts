@@ -25,6 +25,15 @@ export type SizeEditRow = {
   isDefault: boolean;
 };
 export type OptionEditRow = { id: number; nameAr: string; nameEn: string; extraPrice: string };
-export type OptionGroupEdit = { groupId: number; groupName: string; options: OptionEditRow[] };
+export type OptionGroupEdit = {
+  groupId: number;
+  groupName: string;
+  groupNameAr: string;
+  groupNameEn: string;
+  isRequired: boolean;
+  /** How many options a customer may pick from this group. Kept as text while editing. */
+  maxSelections: string;
+  options: OptionEditRow[];
+};
 
 export type RowError = { id: number; msg: string } | null;

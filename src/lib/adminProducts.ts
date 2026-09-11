@@ -348,6 +348,16 @@ export type ModifierOptionEditDraft = {
   extraPrice: string;
 };
 
+export type ModifierGroupEditDraft = {
+  maxSelections: string;
+};
+
+export type ModifierGroupNamesEditDraft = {
+  nameAr: string;
+  nameEn: string;
+  isRequired: boolean;
+};
+
 export function validateSizeEdit(draft: SizeEditDraft): string | null {
   if (!draft.nameEn.trim()) return "English name is required";
   if (!draft.nameAr.trim()) return "Arabic name is required";
@@ -361,6 +371,21 @@ export function validateModifierOptionEdit(draft: ModifierOptionEditDraft): stri
   if (!draft.nameAr.trim()) return "Arabic name is required";
   const extraPrice = Number(draft.extraPrice);
   if (!Number.isFinite(extraPrice) || extraPrice < 0) return "Extra price must be ≥ 0";
+  return null;
+}
+
+export function validateModifierGroupEdit(draft: ModifierGroupEditDraft): string | null {
+  const max = Number(draft.maxSelections);
+  // The column is an int, so a fractional value would fail model binding.
+  if (draft.maxSelections.trim() === "" || !Number.isInteger(max) || max < 1) {
+    return "Max selections must be a whole number of at least 1";
+  }
+  return null;
+}
+
+export function validateModifierGroupNamesEdit(draft: ModifierGroupNamesEditDraft): string | null {
+  if (!draft.nameEn.trim()) return "English name is required";
+  if (!draft.nameAr.trim()) return "Arabic name is required";
   return null;
 }
 
@@ -381,6 +406,44 @@ export async function updateSize(
     headers: { "Content-Type": "application/json", ...getAuthHeaders() },
     body: JSON.stringify(input),
   });
+  await ensureOk(res);
+}
+
+/**
+ * Groups hang off the product, so this PUT lives under the product path (unlike
+ * option writes, which go through the group path). Every field on the API's
+ * update DTO is optional and only applied when present, so sending just
+ * `maxSelections` leaves the group's names and required flag untouched.
+ */
+export async function updateModifierGroup(
+  productId: number,
+  groupId: number,
+  input: { maxSelections: number },
+): Promise<void> {
+  const res = await fetch(
+    apiUrl(`${PRODUCTS_PATH}/${productId}/modifier-groups/${groupId}`),
+    {
+      method: "PUT",
+      headers: { "Content-Type": "application/json", ...getAuthHeaders() },
+      body: JSON.stringify(input),
+    },
+  );
+  await ensureOk(res);
+}
+
+export async function updateModifierGroupNames(
+  productId: number,
+  groupId: number,
+  input: { nameAr: string; nameEn: string; isRequired: boolean },
+): Promise<void> {
+  const res = await fetch(
+    apiUrl(`${PRODUCTS_PATH}/${productId}/modifier-groups/${groupId}`),
+    {
+      method: "PUT",
+      headers: { "Content-Type": "application/json", ...getAuthHeaders() },
+      body: JSON.stringify(input),
+    },
+  );
   await ensureOk(res);
 }
 
@@ -405,6 +468,20 @@ export async function deleteModifierOption(
     method: "DELETE",
     headers: { ...getAuthHeaders() },
   });
+  await ensureOk(res);
+}
+
+export async function deleteModifierGroup(
+  productId: number,
+  groupId: number,
+): Promise<void> {
+  const res = await fetch(
+    apiUrl(`${PRODUCTS_PATH}/${productId}/modifier-groups/${groupId}`),
+    {
+      method: "DELETE",
+      headers: { ...getAuthHeaders() },
+    },
+  );
   await ensureOk(res);
 }
 

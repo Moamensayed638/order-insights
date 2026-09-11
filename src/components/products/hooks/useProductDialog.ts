@@ -3,10 +3,10 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import {
   applyDefaultSize, createModifierGroup, createModifierOption, createProduct,
-  createSize, deleteModifierOption, fetchProductById, formatDiscountTimestamp,
-  resolveEditCategoryId, updateModifierOption, updateProduct, updateSize,
-  validateModifierGroups, validateModifierOptionEdit, validateProductForm,
-  validateSizeEdit, validateSizes,
+  createSize, deleteModifierOption, deleteModifierGroup, fetchProductById, formatDiscountTimestamp,
+  resolveEditCategoryId, updateModifierGroup, updateModifierGroupNames, updateModifierOption, updateProduct,
+  updateSize, validateModifierGroupEdit, validateModifierGroupNamesEdit, validateModifierGroups,
+  validateModifierOptionEdit, validateProductForm, validateSizeEdit, validateSizes,
 } from "@/lib/adminProducts";
 import type { ModifierGroupDraft, SizeDraft } from "@/lib/adminProducts";
 import { pickDisplay } from "@/lib/productSchemas";
@@ -42,12 +42,18 @@ export function useProductDialog(categories: Category[]) {
   const [optionEdits, setOptionEdits] = useState<OptionGroupEdit[]>([]);
   const [sizeRowError, setSizeRowError] = useState<RowError>(null);
   const [optionRowError, setOptionRowError] = useState<RowError>(null);
+  // Group-level errors are keyed by group id, so they get their own slot rather
+  // than sharing the option rows' id space.
+  const [groupRowError, setGroupRowError] = useState<RowError>(null);
   const [savingSizes, setSavingSizes] = useState(false);
   const [savingOptions, setSavingOptions] = useState(false);
   const [deletingOptionId, setDeletingOptionId] = useState<number | null>(null);
+  const [deletingGroupId, setDeletingGroupId] = useState<number | null>(null);
+  const [addingGroup, setAddingGroup] = useState(false);
   // New, unsaved option rows get a temporary negative id until the server
   // assigns a real one on save.
   const tempIdRef = useRef(-1);
+  const tempGroupIdRef = useRef(-1000);
 
   function resetForm() {
     setForm(emptyForm);
@@ -60,6 +66,7 @@ export function useProductDialog(categories: Category[]) {
     setOptionEdits([]);
     setSizeRowError(null);
     setOptionRowError(null);
+    setGroupRowError(null);
     setSavingSizes(false);
     setSavingOptions(false);
     setEditTab("details");
@@ -74,7 +81,12 @@ export function useProductDialog(categories: Category[]) {
       isDefault: s.isDefault,
     })));
     setOptionEdits(product.modifierGroups.map((g) => ({
-      groupId: g.id, groupName: g.name,
+      groupId: g.id,
+      groupName: g.name,
+      groupNameAr: g.nameAr,
+      groupNameEn: g.nameEn,
+      isRequired: g.isRequired,
+      maxSelections: String(g.maxSelections),
       options: g.options.map((o) => ({
         id: o.id,
         nameAr: o.nameAr,
@@ -84,6 +96,7 @@ export function useProductDialog(categories: Category[]) {
     })));
     setSizeRowError(null);
     setOptionRowError(null);
+    setGroupRowError(null);
   }
 
   function openCreate() {
@@ -225,28 +238,53 @@ export function useProductDialog(categories: Category[]) {
 
   async function saveAllOptions() {
     setOptionRowError(null);
+    setGroupRowError(null);
+    if (!editing) return;
+    for (const group of optionEdits) {
+      const err = validateModifierGroupEdit({ maxSelections: group.maxSelections });
+      if (err) return setGroupRowError({ id: group.groupId, msg: err });
+      const nameErr = validateModifierGroupNamesEdit({
+        nameAr: group.groupNameAr,
+        nameEn: group.groupNameEn,
+        isRequired: group.isRequired,
+      });
+      if (nameErr) return setGroupRowError({ id: group.groupId, msg: nameErr });
+    }
     for (const row of optionEdits.flatMap((g) => g.options)) {
       const err = validateModifierOptionEdit(row);
       if (err) return setOptionRowError({ id: row.id, msg: err });
     }
     setSavingOptions(true);
     try {
-      await Promise.all(optionEdits.flatMap((g) => g.options.map((o) => {
-        const payload = {
-          nameAr: o.nameAr.trim(),
-          nameEn: o.nameEn.trim(),
-          extraPrice: Number(o.extraPrice),
-        };
-        return o.id < 0
-          ? createModifierOption(g.groupId, payload)
-          : updateModifierOption(g.groupId, o.id, payload);
-      })));
+      await Promise.all([
+        // Update group names, isRequired, and maxSelections
+        ...optionEdits.map((g) =>
+          updateModifierGroupNames(editing.id, g.groupId, {
+            nameAr: g.groupNameAr.trim(),
+            nameEn: g.groupNameEn.trim(),
+            isRequired: g.isRequired,
+          }),
+        ),
+        ...optionEdits.map((g) =>
+          updateModifierGroup(editing.id, g.groupId, {
+            maxSelections: Number(g.maxSelections),
+          }),
+        ),
+        ...optionEdits.flatMap((g) => g.options.map((o) => {
+          const payload = {
+            nameAr: o.nameAr.trim(),
+            nameEn: o.nameEn.trim(),
+            extraPrice: Number(o.extraPrice),
+          };
+          return o.id < 0
+            ? createModifierOption(g.groupId, payload)
+            : updateModifierOption(g.groupId, o.id, payload);
+        })),
+      ]);
       // Some rows were newly created and lack real ids — reseed from the server.
-      if (editing) {
-        const fresh = await fetchProductById(editing.id);
-        setEditing(fresh);
-        seedEdits(fresh);
-      }
+      const fresh = await fetchProductById(editing.id);
+      setEditing(fresh);
+      seedEdits(fresh);
       toast.success("Modifiers saved");
       queryClient.invalidateQueries({ queryKey: ["admin-products"] });
     } catch (error) {
@@ -282,6 +320,50 @@ export function useProductDialog(categories: Category[]) {
       toast.error(error instanceof Error ? error.message : "Failed to delete option");
     } finally {
       setDeletingOptionId(null);
+    }
+  }
+
+  async function deleteGroup(groupId: number) {
+    setGroupRowError(null);
+    if (!editing) return;
+    setDeletingGroupId(groupId);
+    try {
+      await deleteModifierGroup(editing.id, groupId);
+      setOptionEdits((groups) => groups.filter((g) => g.groupId !== groupId));
+      setEditing((prev) => prev && {
+        ...prev,
+        modifierGroups: prev.modifierGroups.filter((g) => g.id !== groupId),
+      });
+      toast.success("Modifier group deleted");
+      queryClient.invalidateQueries({ queryKey: ["admin-products"] });
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Failed to delete group");
+    } finally {
+      setDeletingGroupId(null);
+    }
+  }
+
+  async function addGroup() {
+    setGroupRowError(null);
+    if (!editing) return;
+    setAddingGroup(true);
+    try {
+      const newGroup = await createModifierGroup(editing.id, {
+        nameAr: "مجموعة جديدة",
+        nameEn: "New Group",
+        isRequired: false,
+        maxSelections: 1,
+      });
+      // Fetch fresh data to get the new group with its assigned ID
+      const fresh = await fetchProductById(editing.id);
+      setEditing(fresh);
+      seedEdits(fresh);
+      toast.success("Modifier group added");
+      queryClient.invalidateQueries({ queryKey: ["admin-products"] });
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Failed to add group");
+    } finally {
+      setAddingGroup(false);
     }
   }
 
@@ -362,11 +444,11 @@ export function useProductDialog(categories: Category[]) {
     formError,
     sizeEdits, setSizeEdits,
     optionEdits, setOptionEdits,
-    sizeRowError, optionRowError,
-    savingSizes, savingOptions, deletingOptionId,
+    sizeRowError, optionRowError, groupRowError,
+    savingSizes, savingOptions, deletingOptionId, deletingGroupId, addingGroup,
     saveMutation,
     openCreate, openEdit, closeDialog,
-    selectDefaultSize, saveAllSizes, saveAllOptions, deleteOption, addOption,
+    selectDefaultSize, saveAllSizes, saveAllOptions, deleteOption, deleteGroup, addGroup, addOption,
     handleImageChange, handleSubmit,
   };
 }

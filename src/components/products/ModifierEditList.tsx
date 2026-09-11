@@ -1,17 +1,24 @@
 import { Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Counter } from "./Counter";
 import { Field } from "./Field";
 import type { OptionGroupEdit, RowError } from "../../types/types";
 
 export function ModifierEditList({
-  optionEdits, setOptionEdits, rowError, onDeleteOption, deletingOptionId, onAddOption,
+  optionEdits, setOptionEdits, rowError, groupError, onDeleteOption, deletingOptionId, onDeleteGroup, deletingGroupId, onAddGroup, onAddOption, addingGroup,
 }: {
   optionEdits: OptionGroupEdit[];
   setOptionEdits: React.Dispatch<React.SetStateAction<OptionGroupEdit[]>>;
   rowError: RowError;
+  groupError: RowError;
   onDeleteOption: (groupId: number, optionId: number) => void;
   deletingOptionId: number | null;
+  onDeleteGroup?: (groupId: number) => void;
+  deletingGroupId?: number | null;
+  onAddGroup?: () => void;
+  addingGroup?: boolean;
   onAddOption: (groupId: number) => void;
 }) {
   return (
@@ -20,8 +27,68 @@ export function ModifierEditList({
         <p className="text-xs text-muted-foreground font-body">This product has no modifier options.</p>
       )}
       {optionEdits.map((g, gi) => (
-        <div key={g.groupId} className="space-y-2">
-          <p className="text-xs font-medium text-foreground">{g.groupName}</p>
+        <div key={g.groupId} className="space-y-2 rounded-md border border-border/40 bg-background/50 p-3">
+          <div className="flex flex-wrap items-end gap-3">
+            <Field label="Group Name (EN)" required>
+              <Input
+                value={g.groupNameEn}
+                onChange={(e) => setOptionEdits(optionEdits.map((x, j) =>
+                  j === gi ? { ...x, groupNameEn: e.target.value } : x,
+                ))}
+                className="w-36"
+              />
+            </Field>
+            <Field label="Group Name (AR)" required>
+              <Input
+                dir="rtl"
+                value={g.groupNameAr}
+                onChange={(e) => setOptionEdits(optionEdits.map((x, j) =>
+                  j === gi ? { ...x, groupNameAr: e.target.value } : x,
+                ))}
+                className="w-36"
+              />
+            </Field>
+            <Field label="Max selections" required>
+              <Counter
+                value={g.maxSelections}
+                onChange={(next) => setOptionEdits(optionEdits.map((x, j) =>
+                  j === gi ? { ...x, maxSelections: next } : x,
+                ))}
+                label={`max selections for ${g.groupName}`}
+              />
+            </Field>
+            <div className="flex items-center gap-2 pb-2">
+              <Checkbox
+                id={`required-${g.groupId}`}
+                checked={g.isRequired}
+                onCheckedChange={(checked) => setOptionEdits(optionEdits.map((x, j) =>
+                  j === gi ? { ...x, isRequired: checked === true } : x,
+                ))}
+              />
+              <label
+                htmlFor={`required-${g.groupId}`}
+                className="text-xs font-medium text-foreground cursor-pointer"
+              >
+                Required
+              </label>
+            </div>
+            {onDeleteGroup && (
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                disabled={deletingGroupId === g.groupId}
+                onClick={() => onDeleteGroup(g.groupId)}
+                aria-label={`Delete group ${g.groupNameEn || g.groupNameAr || g.groupName}`}
+                className="mb-0.5 h-9 w-9 text-muted-foreground hover:text-destructive"
+              >
+                <Trash2 className="h-4 w-4" />
+              </Button>
+            )}
+          </div>
+          {groupError?.id === g.groupId && (
+            <p className="text-[11px] text-destructive font-body">{groupError.msg}</p>
+          )}
           <div className="space-y-2 pl-2 border-l border-border/40">
             {g.options.map((o, oi) => (
               <div key={o.id} className="space-y-1">
@@ -85,6 +152,19 @@ export function ModifierEditList({
           </div>
         </div>
       ))}
+      {onAddGroup && (
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          onClick={onAddGroup}
+          disabled={addingGroup}
+          className="h-8 gap-1.5 border-border/60 text-xs"
+        >
+          <Plus className="h-4 w-4" />
+          {addingGroup ? "Adding group..." : "Add modifier group"}
+        </Button>
+      )}
     </div>
   );
 }

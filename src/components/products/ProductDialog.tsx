@@ -25,9 +25,9 @@ export function ProductDialog({
     dialogOpen, wizardStep, setWizardStep, editing, editTab, setEditTab,
     form, setForm, sizes, setSizes, modifierGroups, setModifierGroups,
     formError, sizeEdits, setSizeEdits, optionEdits, setOptionEdits,
-    sizeRowError, optionRowError, savingSizes, savingOptions, deletingOptionId,
+    sizeRowError, optionRowError, groupRowError, savingSizes, savingOptions, deletingOptionId, deletingGroupId, addingGroup,
     saveMutation, closeDialog, selectDefaultSize, saveAllSizes, saveAllOptions,
-    deleteOption, addOption, handleImageChange, handleSubmit,
+    deleteOption, deleteGroup, addGroup, addOption, handleImageChange, handleSubmit,
   } = ctrl;
 
   return (
@@ -114,8 +114,13 @@ export function ProductDialog({
               optionEdits={optionEdits}
               setOptionEdits={setOptionEdits}
               rowError={optionRowError}
+              groupError={groupRowError}
               onDeleteOption={deleteOption}
               deletingOptionId={deletingOptionId}
+              onDeleteGroup={deleteGroup}
+              deletingGroupId={deletingGroupId}
+              onAddGroup={addGroup}
+              addingGroup={addingGroup}
               onAddOption={addOption}
             />
           )}

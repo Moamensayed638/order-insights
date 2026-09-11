@@ -2,6 +2,7 @@ import { Minus, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import type { ModifierGroupDraft } from "@/lib/adminProducts";
+import { Counter } from "./Counter";
 import { Field } from "./Field";
 
 export function WizardModifiers({
@@ -36,11 +37,10 @@ export function WizardModifiers({
               />
             </Field>
             <Field label="Max selections" required>
-              <Input
-                type="number" min="1"
+              <Counter
                 value={g.maxSelections}
-                onChange={(e) => setModifierGroups(modifierGroups.map((x, j) => j === gi ? { ...x, maxSelections: e.target.value } : x))}
-                className="w-24"
+                onChange={(next) => setModifierGroups(modifierGroups.map((x, j) => j === gi ? { ...x, maxSelections: next } : x))}
+                label={`max selections for group ${gi + 1}`}
               />
             </Field>
             <div className="flex items-center gap-1.5 pb-1">
