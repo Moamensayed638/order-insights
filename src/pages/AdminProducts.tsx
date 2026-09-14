@@ -12,6 +12,8 @@ import { TopSellingTable } from "@/components/products/TopSellingTable";
 import { useDeleteProduct } from "@/components/products/hooks/useDeleteProduct";
 import { useProductDialog } from "@/components/products/hooks/useProductDialog";
 import { useProductsData } from "@/components/products/hooks/useProductsData";
+import { deleteDraft } from "@/lib/productDrafts";
+import { toast } from "sonner";
 import type { TabValue } from "@/types/types";
 
 const AdminProducts = () => {
@@ -21,7 +23,14 @@ const AdminProducts = () => {
 
   useEffect(() => { document.title = "Biscofa — Admin Products"; }, []);
 
-  const { productsQuery, topSellingQuery, stats, filtered, tab, setTab, search, setSearch } = data;
+  const { productsQuery, topSellingQuery, stats, filtered, tab, setTab, search, setSearch, allProductsWithDrafts } = data;
+
+  const handleDeleteDraft = (draftId: string) => {
+    deleteDraft(draftId);
+    toast.success("Draft deleted");
+    // Trigger re-render by refetching products query
+    productsQuery.refetch();
+  };
 
   return (
     <div className="min-h-screen bg-background">
@@ -97,12 +106,15 @@ const AdminProducts = () => {
             />
           ) : (
             <ProductsTable
-              products={filtered}
+              products={allProductsWithDrafts}
               isLoading={productsQuery.isLoading}
               isError={productsQuery.isError}
               onRetry={() => productsQuery.refetch()}
               onEdit={dialog.openEdit}
+              onEditDraft={dialog.openEditDraft}
               onDelete={del.setDeletingProduct}
+              onCopy={dialog.openCopy}
+              onDeleteDraft={handleDeleteDraft}
             />
           )}
 

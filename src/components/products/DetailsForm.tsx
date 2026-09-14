@@ -8,7 +8,7 @@ import { Field } from "./Field";
 import type { FormState } from "../../types/types";
 
 export function DetailsForm({
-  form, setForm, categories, categoriesLoading, editing, onImageChange,
+  form, setForm, categories, categoriesLoading, editing, onImageChange, draftImageUrl,
 }: {
   form: FormState;
   setForm: React.Dispatch<React.SetStateAction<FormState>>;
@@ -16,6 +16,7 @@ export function DetailsForm({
   categoriesLoading: boolean;
   editing: AdminProduct | null;
   onImageChange: (file: File | null) => void;
+  draftImageUrl?: string | null;
 }) {
   return (
     <>
@@ -95,7 +96,7 @@ export function DetailsForm({
         </Field>
       </div>
 
-      <Field label={editing ? "Replace image (optional, ≤ 2 MB)" : "Image (required, ≤ 2 MB)"} required={!editing}>
+      <Field label={editing ? "Replace image (optional, ≤ 2 MB)" : "Image (required, ≤ 2 MB)"} required={!editing && !draftImageUrl}>
         <Input
           type="file"
           accept="image/*"
@@ -104,6 +105,11 @@ export function DetailsForm({
         {editing && editing.imageUrl && (
           <p className="mt-1 text-[10px] font-mono text-muted-foreground">
             Current: {editing.imageUrl.split("/").pop()}
+          </p>
+        )}
+        {!editing && draftImageUrl && (
+          <p className="mt-1 text-[10px] font-mono text-muted-foreground">
+            Current: {draftImageUrl.split("/").pop()}
           </p>
         )}
       </Field>

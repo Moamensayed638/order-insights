@@ -97,6 +97,7 @@ export function ProductDialog({
               categoriesLoading={categoriesLoading}
               editing={editing}
               onImageChange={handleImageChange}
+              draftImageUrl={ctrl.draftImageUrl}
             />
           )}
 

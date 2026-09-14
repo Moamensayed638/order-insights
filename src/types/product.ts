@@ -80,3 +80,45 @@ export type ProductFormInput = {
   discountStart?: string | null;
   discountEnd?: string | null;
 };
+
+export type SizeDraft = {
+  nameAr: string;
+  nameEn: string;
+  price: string;
+  isDefault: boolean;
+};
+
+export type ModifierOptionDraft = {
+  nameAr: string;
+  nameEn: string;
+  extraPrice: string;
+};
+
+export type ModifierGroupDraft = {
+  nameAr: string;
+  nameEn: string;
+  isRequired: boolean;
+  maxSelections: string;
+  options: ModifierOptionDraft[];
+};
+
+export type ProductDraft = {
+  isDraft: true;
+  draftId: string;
+  sourceProductId: number;
+  createdAt: string;
+  nameAr: string;
+  nameEn: string;
+  descriptionAr: string;
+  descriptionEn: string;
+  price: number;
+  categoryId: number;
+  calories: number;
+  pointsReward: number;
+  imageUrl: string;
+  discountPercentage?: number;
+  discountStart?: string;
+  discountEnd?: string;
+  sizes: SizeDraft[];
+  modifierGroups: ModifierGroupDraft[];
+};

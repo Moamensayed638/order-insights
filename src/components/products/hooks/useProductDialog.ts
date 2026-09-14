@@ -9,6 +9,7 @@ import {
   validateModifierOptionEdit, validateProductForm, validateSizeEdit, validateSizes,
 } from "@/lib/adminProducts";
 import type { ModifierGroupDraft, SizeDraft } from "@/lib/adminProducts";
+import { createDraftFromProduct, saveDraft, getDraftById, deleteDraft } from "@/lib/productDrafts";
 import { pickDisplay } from "@/lib/productSchemas";
 import type { AdminProduct, Category, ProductFormInput } from "@/types/product";
 import { emptyForm, MAX_IMAGE_BYTES } from "../constants/constants";
@@ -54,6 +55,10 @@ export function useProductDialog(categories: Category[]) {
   // assigns a real one on save.
   const tempIdRef = useRef(-1);
   const tempGroupIdRef = useRef(-1000);
+  // Track the draft ID when editing a draft
+  const [editingDraftId, setEditingDraftId] = useState<string | null>(null);
+  // Track the existing imageUrl when editing a draft
+  const [draftImageUrl, setDraftImageUrl] = useState<string | null>(null);
 
   function resetForm() {
     setForm(emptyForm);
@@ -70,6 +75,8 @@ export function useProductDialog(categories: Category[]) {
     setSavingSizes(false);
     setSavingOptions(false);
     setEditTab("details");
+    setEditingDraftId(null);
+    setDraftImageUrl(null);
   }
 
   function seedEdits(product: AdminProduct) {
@@ -132,6 +139,46 @@ export function useProductDialog(categories: Category[]) {
     resetForm();
   }
 
+  function openCopy(product: AdminProduct) {
+    const draft = createDraftFromProduct(product);
+    saveDraft(draft);
+    toast.success("Draft created");
+    // Force immediate update by invalidating and refetching
+    queryClient.invalidateQueries({ queryKey: ["admin-products"] });
+    // Use setTimeout to ensure the refetch happens after state updates
+    setTimeout(() => {
+      queryClient.refetchQueries({ queryKey: ["admin-products"] });
+    }, 0);
+  }
+
+  function openEditDraft(draftId: string) {
+    const draft = getDraftById(draftId);
+    if (!draft) return;
+
+    setEditingDraftId(draftId);
+    setDraftImageUrl(draft.imageUrl);
+    setEditing(null);
+    setFormError(null);
+    setWizardStep(1);
+    setForm({
+      nameAr: draft.nameAr,
+      nameEn: draft.nameEn,
+      descriptionAr: draft.descriptionAr,
+      descriptionEn: draft.descriptionEn,
+      price: String(draft.price),
+      categoryId: String(draft.categoryId),
+      calories: String(draft.calories),
+      pointsReward: String(draft.pointsReward),
+      discountPercentage: draft.discountPercentage != null ? String(draft.discountPercentage) : "",
+      discountStart: draft.discountStart ? draft.discountStart.slice(0, 16) : "",
+      discountEnd: draft.discountEnd ? draft.discountEnd.slice(0, 16) : "",
+      image: null,
+    });
+    setSizes(draft.sizes);
+    setModifierGroups(draft.modifierGroups);
+    setDialogOpen(true);
+  }
+
   const saveMutation = useMutation({
     mutationFn: async (input: { id?: number; payload: ProductFormInput }) => {
       if (input.id != null) return updateProduct(input.id, input.payload);
@@ -165,6 +212,10 @@ export function useProductDialog(categories: Category[]) {
     },
     onSuccess: (_data, variables) => {
       toast.success(variables.id != null ? "Product updated" : "Product created");
+      // Delete draft from localStorage if we were editing a draft
+      if (editingDraftId) {
+        deleteDraft(editingDraftId);
+      }
       setDialogOpen(false);
       resetForm();
       queryClient.invalidateQueries({ queryKey: ["admin-products"] });
@@ -447,9 +498,10 @@ export function useProductDialog(categories: Category[]) {
     sizeRowError, optionRowError, groupRowError,
     savingSizes, savingOptions, deletingOptionId, deletingGroupId, addingGroup,
     saveMutation,
-    openCreate, openEdit, closeDialog,
+    openCreate, openEdit, openCopy, openEditDraft, closeDialog,
     selectDefaultSize, saveAllSizes, saveAllOptions, deleteOption, deleteGroup, addGroup, addOption,
     handleImageChange, handleSubmit,
+    draftImageUrl,
   };
 }
 
