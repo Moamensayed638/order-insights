@@ -14,6 +14,7 @@ export type ModifierOption = {
   nameEn: string;
   name: string;
   extraPrice: number;
+  isCountable?: boolean;
 };
 
 export type ModifierGroup = {
@@ -92,6 +93,7 @@ export type ModifierOptionDraft = {
   nameAr: string;
   nameEn: string;
   extraPrice: string;
+  isCountable?: boolean;
 };
 
 export type ModifierGroupDraft = {

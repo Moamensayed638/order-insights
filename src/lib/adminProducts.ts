@@ -216,6 +216,7 @@ export type ModifierOptionDraft = {
   nameAr: string;
   nameEn: string;
   extraPrice: string;
+  isCountable?: boolean;
 };
 
 export type ModifierGroupDraft = {
@@ -326,7 +327,7 @@ export async function createModifierGroup(
 
 export async function createModifierOption(
   groupId: number,
-  input: { nameAr: string; nameEn: string; extraPrice: number },
+  input: { nameAr: string; nameEn: string; extraPrice: number; isCountable?: boolean },
 ): Promise<void> {
   const res = await fetchWithAuth(apiUrl(`${MODIFIER_GROUPS_PATH}/${groupId}/options`), {
     method: "POST",
@@ -347,6 +348,7 @@ export type ModifierOptionEditDraft = {
   nameAr: string;
   nameEn: string;
   extraPrice: string;
+  isCountable?: boolean;
 };
 
 export type ModifierGroupEditDraft = {
@@ -451,7 +453,7 @@ export async function updateModifierGroupNames(
 export async function updateModifierOption(
   groupId: number,
   optionId: number,
-  input: { nameAr: string; nameEn: string; extraPrice: number },
+  input: { nameAr: string; nameEn: string; extraPrice: number; isCountable?: boolean },
 ): Promise<void> {
   const res = await fetchWithAuth(apiUrl(`${MODIFIER_GROUPS_PATH}/${groupId}/options/${optionId}`), {
     method: "PUT",

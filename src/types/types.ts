@@ -24,7 +24,13 @@ export type SizeEditRow = {
   price: string;
   isDefault: boolean;
 };
-export type OptionEditRow = { id: number; nameAr: string; nameEn: string; extraPrice: string };
+export type OptionEditRow = {
+  id: number;
+  nameAr: string;
+  nameEn: string;
+  extraPrice: string;
+  isCountable?: boolean;
+};
 export type OptionGroupEdit = {
   groupId: number;
   groupName: string;

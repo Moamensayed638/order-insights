@@ -10,6 +10,7 @@ import { z } from "zod";
 const text = z.preprocess((v) => (v == null ? "" : v), z.string());
 const num = z.preprocess((v) => (v == null ? 0 : v), z.number());
 const bool = z.preprocess((v) => (v == null ? false : v), z.boolean());
+const countable = z.preprocess((v) => (v == null ? true : v), z.boolean());
 
 /** English is the admin panel's display language; fall back to Arabic. */
 export function pickDisplay(en: string, ar: string): string {
@@ -32,6 +33,7 @@ export const modifierOptionSchema = z
     nameAr: text,
     nameEn: text,
     extraPrice: num,
+    isCountable: countable,
   })
   .transform((o) => ({ ...o, name: pickDisplay(o.nameEn, o.nameAr) }));
 

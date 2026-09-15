@@ -63,6 +63,7 @@ export function createDraftFromProduct(product: AdminProduct): ProductDraft {
       nameAr: o.nameAr,
       nameEn: o.nameEn,
       extraPrice: String(o.extraPrice),
+      isCountable: o.isCountable ?? true,
     })),
   }));
 

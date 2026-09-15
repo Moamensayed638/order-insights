@@ -115,4 +115,42 @@ describe("useProductDialog - draft submission", () => {
     expect(adminProducts.createProduct).toHaveBeenCalled();
     expect(deleteDraftMock).toHaveBeenCalledWith("draft_789");
   });
+
+  test("submitting a new product sends the counter setting for each modifier option", async () => {
+    const draft: ProductDraft = {
+      isDraft: true, draftId: "draft_countable", sourceProductId: 20, createdAt: "2024-01-01T00:00:00.000Z",
+      nameAr: "قهوة", nameEn: "Coffee", descriptionAr: "قهوة ساخنة", descriptionEn: "Hot coffee",
+      price: 50, categoryId: 1, calories: 10, pointsReward: 5, imageUrl: "/images/coffee.jpg",
+      sizes: [{ nameAr: "صغير", nameEn: "Small", price: "50", isDefault: true }],
+      modifierGroups: [{
+        nameAr: "إضافات", nameEn: "Extras", isRequired: false, maxSelections: "1",
+        options: [{ nameAr: "سكر", nameEn: "Sugar", extraPrice: "5", isCountable: true }],
+      }],
+    };
+    const product = {
+      id: 101, nameAr: "قهوة", nameEn: "Coffee", name: "Coffee", descriptionAr: "قهوة ساخنة", descriptionEn: "Hot coffee", description: "Hot coffee",
+      price: 50, calories: 10, pointsReward: 5, imageUrl: "/images/coffee.jpg", isAvailable: true, categoryName: "Drinks", categoryId: 1,
+      discountedPrice: 50, sizes: [], modifierGroups: [],
+    };
+    vi.mocked(productDrafts.getDraftById).mockReturnValue(draft);
+    vi.mocked(adminProducts.createProduct).mockResolvedValue(product);
+    vi.mocked(adminProducts.createSize).mockResolvedValue(undefined);
+    vi.mocked(adminProducts.createModifierGroup).mockResolvedValue({ id: 3 });
+    vi.mocked(adminProducts.createModifierOption).mockResolvedValue(undefined);
+
+    const { result } = renderHook(() => useProductDialog(mockCategories), { wrapper: createWrapper() });
+    act(() => result.current.openEditDraft("draft_countable"));
+    act(() => result.current.setWizardStep(3));
+
+    await act(async () => {
+      const event = new Event("submit", { bubbles: true, cancelable: true });
+      Object.defineProperty(event, "preventDefault", { value: vi.fn() });
+      result.current.handleSubmit(event as any);
+    });
+
+    await waitFor(() => expect(result.current.saveMutation.isSuccess).toBe(true));
+    expect(adminProducts.createModifierOption).toHaveBeenCalledWith(3, {
+      nameAr: "سكر", nameEn: "Sugar", extraPrice: 5, isCountable: true,
+    });
+  });
 });

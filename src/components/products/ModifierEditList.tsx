@@ -122,6 +122,18 @@ export function ModifierEditList({
                       className="w-28"
                     />
                   </Field>
+                  <div className="flex items-center gap-2 pb-2">
+                    <Checkbox
+                      id={`countable-${o.id}`}
+                      checked={o.isCountable ?? true}
+                      onCheckedChange={(checked) => setOptionEdits(optionEdits.map((x, j) =>
+                        j === gi ? { ...x, options: x.options.map((op, k) => k === oi ? { ...op, isCountable: checked === true } : op) } : x,
+                      ))}
+                    />
+                    <label htmlFor={`countable-${o.id}`} className="text-xs font-medium text-foreground cursor-pointer">
+                      Countable
+                    </label>
+                  </div>
                   <Button
                     type="button"
                     variant="ghost"

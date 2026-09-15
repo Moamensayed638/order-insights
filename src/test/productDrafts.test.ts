@@ -241,8 +241,8 @@ describe("productDrafts", () => {
           isRequired: false,
           maxSelections: 2,
           options: [
-            { id: 100, nameAr: "جبن", nameEn: "Cheese", name: "Cheese", extraPrice: 10 },
-            { id: 101, nameAr: "زيتون", nameEn: "Olives", name: "Olives", extraPrice: 5 },
+            { id: 100, nameAr: "جبن", nameEn: "Cheese", name: "Cheese", extraPrice: 10, isCountable: true },
+            { id: 101, nameAr: "زيتون", nameEn: "Olives", name: "Olives", extraPrice: 5, isCountable: false },
           ],
         },
       ],
@@ -276,6 +276,7 @@ describe("productDrafts", () => {
     expect(draft.modifierGroups[0].maxSelections).toBe("2");
     expect(draft.modifierGroups[0].options).toHaveLength(2);
     expect(draft.modifierGroups[0].options[0].extraPrice).toBe("10");
+    expect(draft.modifierGroups[0].options[0].isCountable).toBe(true);
     expect(draft.discountPercentage).toBe(10);
     expect(draft.discountStart).toBe("2024-01-01T00:00:00");
     expect(draft.discountEnd).toBe("2024-12-31T23:59:59");

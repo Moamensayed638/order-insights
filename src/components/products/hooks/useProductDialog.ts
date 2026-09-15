@@ -24,7 +24,7 @@ const blankGroups: ModifierGroupDraft[] = [
     nameEn: "",
     isRequired: false,
     maxSelections: "1",
-    options: [{ nameAr: "", nameEn: "", extraPrice: "0" }],
+    options: [{ nameAr: "", nameEn: "", extraPrice: "0", isCountable: true }],
   },
 ];
 
@@ -99,6 +99,7 @@ export function useProductDialog(categories: Category[]) {
         nameAr: o.nameAr,
         nameEn: o.nameEn,
         extraPrice: String(o.extraPrice),
+        isCountable: o.isCountable ?? true,
       })),
     })));
     setSizeRowError(null);
@@ -204,6 +205,7 @@ export function useProductDialog(categories: Category[]) {
               nameAr: o.nameAr.trim(),
               nameEn: o.nameEn.trim(),
               extraPrice: Number(o.extraPrice),
+              isCountable: o.isCountable ?? true,
             }),
           ));
         }
@@ -280,7 +282,7 @@ export function useProductDialog(categories: Category[]) {
           ...g,
           options: [
             ...g.options,
-            { id: tempIdRef.current--, nameAr: "", nameEn: "", extraPrice: "0" },
+            { id: tempIdRef.current--, nameAr: "", nameEn: "", extraPrice: "0", isCountable: true },
           ],
         }
         : g,
@@ -326,6 +328,7 @@ export function useProductDialog(categories: Category[]) {
             nameAr: o.nameAr.trim(),
             nameEn: o.nameEn.trim(),
             extraPrice: Number(o.extraPrice),
+            isCountable: o.isCountable ?? true,
           };
           return o.id < 0
             ? createModifierOption(g.groupId, payload)

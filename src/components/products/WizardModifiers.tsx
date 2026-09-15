@@ -101,6 +101,20 @@ export function WizardModifiers({
                     placeholder="0"
                   />
                 </Field>
+                <div className="flex items-center gap-1.5 pb-1">
+                  <input
+                    id={`option-countable-${gi}-${oi}`}
+                    type="checkbox"
+                    checked={o.isCountable ?? true}
+                    onChange={(e) => setModifierGroups(modifierGroups.map((x, j) =>
+                      j === gi ? { ...x, options: x.options.map((op, k) => k === oi ? { ...op, isCountable: e.target.checked } : op) } : x,
+                    ))}
+                    className="accent-primary"
+                  />
+                  <label htmlFor={`option-countable-${gi}-${oi}`} className="text-[10px] font-mono uppercase tracking-wide text-muted-foreground cursor-pointer">
+                    Countable
+                  </label>
+                </div>
                 {g.options.length > 1 && (
                   <Button
                     type="button" variant="ghost" size="icon"
@@ -117,7 +131,7 @@ export function WizardModifiers({
             <Button
               type="button" variant="outline" size="sm"
               onClick={() => setModifierGroups(modifierGroups.map((x, j) =>
-                j === gi ? { ...x, options: [...x.options, { nameAr: "", nameEn: "", extraPrice: "0" }] } : x,
+                j === gi ? { ...x, options: [...x.options, { nameAr: "", nameEn: "", extraPrice: "0", isCountable: true }] } : x,
               ))}
               className="gap-1.5 border-border/60 text-xs"
             >
@@ -128,7 +142,7 @@ export function WizardModifiers({
       ))}
       <Button
         type="button" variant="outline" size="sm"
-        onClick={() => setModifierGroups([...modifierGroups, { nameAr: "", nameEn: "", isRequired: false, maxSelections: "1", options: [{ nameAr: "", nameEn: "", extraPrice: "0" }] }])}
+        onClick={() => setModifierGroups([...modifierGroups, { nameAr: "", nameEn: "", isRequired: false, maxSelections: "1", options: [{ nameAr: "", nameEn: "", extraPrice: "0", isCountable: true }] }])}
         className="gap-1.5 border-border/60 text-xs"
       >
         <Plus className="h-3.5 w-3.5" /> Add group

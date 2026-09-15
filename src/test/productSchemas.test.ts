@@ -71,6 +71,27 @@ describe("adminProductSchema", () => {
     expect(parsed.sizes[0].name).toBe("medium");
   });
 
+  it("keeps a countable modifier option from the API", () => {
+    const parsed = adminProductSchema.parse({
+      ...realListSample[1],
+      modifierGroups: [{
+        ...realListSample[1].modifierGroups[0],
+        options: [{
+          ...realListSample[1].modifierGroups[0].options[0],
+          isCountable: true,
+        }],
+      }],
+    });
+
+    expect(parsed.modifierGroups[0].options[0].isCountable).toBe(true);
+  });
+
+  it("defaults a legacy modifier option to countable", () => {
+    const parsed = adminProductSchema.parse(realListSample[1]);
+
+    expect(parsed.modifierGroups[0].options[0].isCountable).toBe(true);
+  });
+
   it("falls back to Arabic when the English side is missing", () => {
     const parsed = adminProductSchema.parse({
       ...realListSample[0],
